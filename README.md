@@ -1,1 +1,1 @@
-# wellness-app-backend
+# YB's Wellness App FastAPI Backend
