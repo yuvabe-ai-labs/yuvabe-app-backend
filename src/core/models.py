@@ -23,7 +23,7 @@ class Users(SQLModel, table=True):
     dob: Optional[date] = None
     address: Optional[str] = None
     profile_picture: Optional[str] = None
-    created_at: datetime = Field(default=datetime.now)
+    created_at: datetime = Field(default_factory=datetime.now)
     asset: List["Assets"] = Relationship(back_populates="user")
 
 

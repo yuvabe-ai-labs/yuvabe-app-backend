@@ -27,7 +27,7 @@ class Posts(SQLModel, table=True):
     category: PostCategory = Field(default=PostCategory.GLOBAL)
     caption: Optional[str] = None
     image: Optional[str] = None
-    created_at: datetime = Field(default=datetime.now, nullable=False)
+    created_at: datetime = Field(default_factory=datetime.now, nullable=False)
     edited_at: datetime = Field(default_factory=datetime.now)
 
 
@@ -37,7 +37,7 @@ class Comments(SQLModel, table=True):
     post_id: uuid.UUID = Field(foreign_key="posts.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
     comment: str = Field(nullable=False)
-    created_at: datetime = Field(default=datetime.now, nullable=False)
+    created_at: datetime = Field(default_factory=datetime.now, nullable=False)
 
 
 class Likes(SQLModel, table=True):
@@ -46,4 +46,4 @@ class Likes(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     post_id: uuid.UUID = Field(foreign_key="posts.id", nullable=False)
     user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
-    liked_at: datetime = Field(default=datetime.now, nullable=False)
+    liked_at: datetime = Field(default_factory=datetime.now, nullable=False)
