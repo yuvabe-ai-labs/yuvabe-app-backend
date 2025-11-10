@@ -20,6 +20,11 @@ class Users(SQLModel, table=True):
     email_id: str = Field(unique=True, nullable=False)
     password: str = Field(nullable=False)
     user_name: str = Field(nullable=False)
+    is_verified: bool = Field(
+        default=False, sa_column_kwargs={"server_default": "false"}
+    )
+    verification_token: Optional[str] = None
+    verification_expires_at: Optional[datetime] = None
     dob: Optional[date] = None
     address: Optional[str] = None
     profile_picture: Optional[str] = None
@@ -61,11 +66,11 @@ class EmotionLogs(SQLModel, table=True):
     __tablename__ = "emotion_logs"
     __table_args__ = (
         UniqueConstraint("user_id", "log_date"),
-        CheckConstraint("morning_emotion BETWEEN 1 AND 10 or morning_emotion IS NULL"),
-        CheckConstraint("evening_emotion BETWEEN 1 AND 10 or evening_emotion IS NULL"),
+        CheckConstraint("morning_emotion BETWEEN 1 AND 7 or morning_emotion IS NULL"),
+        CheckConstraint("evening_emotion BETWEEN 1 AND 7 or evening_emotion IS NULL"),
     )
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
-    morning_emotion: Optional[int] = Field(default=None, ge=1, le=10)
-    evening_emotion: Optional[int] = Field(default=None, ge=1, le=10)
+    morning_emotion: Optional[int] = Field(default=None, ge=1, le=7)
+    evening_emotion: Optional[int] = Field(default=None, ge=1, le=7)
     log_date: date = Field(default_factory=date.today)
