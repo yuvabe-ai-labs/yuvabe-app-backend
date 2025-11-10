@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.core.models import EmotionLogs, Users
 
@@ -9,18 +10,20 @@ from .schemas import EmotionLogCreate, EmotionLogResponse, HomeResponseData
 PHILOSOPHY_TEXT = "Your mind is your greatest asset — train it daily."
 
 
-def get_home_data(user_id: str, session: Session) -> HomeResponseData:
-    user = session.exec(select(Users).where(Users.id == user_id)).first()
+async def get_home_data(user_id: str, session: AsyncSession) -> HomeResponseData:
+    result = await session.exec(select(Users).where(Users.id == user_id))
+    user = result.first()
     if not user:
         raise ValueError("User not found")
 
     seven_days_ago = date.today() - timedelta(days=7)
-    emotion_logs = session.exec(
+    result = await session.exec(
         select(EmotionLogs)
         .where(EmotionLogs.user_id == user_id)
         .where(EmotionLogs.log_date >= seven_days_ago)
         .order_by(EmotionLogs.log_date)
-    ).all()
+    )
+    emotion_logs = result.all()
 
     emotion_responses = [
         EmotionLogResponse(
@@ -39,12 +42,13 @@ def get_home_data(user_id: str, session: Session) -> HomeResponseData:
     )
 
 
-def add_or_update_emotion(data: EmotionLogCreate, session: Session):
-    existing_log = session.exec(
+async def add_or_update_emotion(data: EmotionLogCreate, session: AsyncSession):
+    result = await session.exec(
         select(EmotionLogs)
         .where(EmotionLogs.user_id == data.user_id)
         .where(EmotionLogs.log_date == data.log_date)
-    ).first()
+    )
+    existing_log = result.first()
 
     if existing_log:
         if data.morning_emotion is not None:
@@ -60,17 +64,18 @@ def add_or_update_emotion(data: EmotionLogCreate, session: Session):
         )
         session.add(new_log)
 
-    session.commit()
-    session.refresh(existing_log or new_log)
+    await session.commit()
+    await session.refresh(existing_log or new_log)
     return existing_log or new_log
 
 
-def get_emotions(user_id: str, session: Session):
-    logs = session.exec(
+async def get_emotions(user_id: str, session: AsyncSession):
+    result = await session.exec(
         select(EmotionLogs)
         .where(EmotionLogs.user_id == user_id)
         .order_by(EmotionLogs.log_date.desc())
-    ).all()
+    )
+    logs = result.all()
 
     return [
         EmotionLogResponse(
