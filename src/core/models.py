@@ -23,8 +23,6 @@ class Users(SQLModel, table=True):
     is_verified: bool = Field(
         default=False, sa_column_kwargs={"server_default": "false"}
     )
-    verification_token: Optional[str] = None
-    verification_expires_at: Optional[datetime] = None
     dob: Optional[date] = None
     address: Optional[str] = None
     profile_picture: Optional[str] = None
