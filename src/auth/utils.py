@@ -3,6 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, timedelta
 from src.auth.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 import secrets
@@ -11,27 +12,13 @@ import os
 import json
 from datetime import datetime, timedelta
 from cryptography.fernet import Fernet, InvalidToken
+from fastapi import Depends, HTTPException, status
 
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_EMAIL = "Hariprasath137@gmail.com"
 SMTP_PASSWORD = "jdtc qyaq fmqd xvse"
-
-
-def send_otp_email(to_email: str, otp: str):
-    subject = "Your Yuvabe OTP Code"
-    body = f"Your OTP is {otp}. It will expire in 5 minutes."
-
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = SMTP_EMAIL
-    msg["To"] = to_email
-
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_EMAIL, SMTP_PASSWORD)
-        server.send_message(msg)
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -51,36 +38,6 @@ def create_access_token(data: dict):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
-
-def generate_opaque_token():
-    return secrets.token_urlsafe(32)
-
-
-# def send_verification_email(to_email: str, token: str):
-#     subject = "Verify your Yuvabe Account"
-#     verification_link = (
-#         f"https://68c71e06225c.ngrok-free.app/auth/verify-email?token={token}"
-#     )
-#     body = f"""
-#     Hi,
-
-#     Please click the link below to verify your email address:
-#     {verification_link}
-
-#     This link will expire in 24 hours.
-#     """
-
-#     msg = MIMEText(body)
-#     msg["Subject"] = subject
-#     msg["From"] = SMTP_EMAIL
-#     msg["To"] = to_email
-
-
-#     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-#         server.starttls()
-#         server.login(SMTP_EMAIL, SMTP_PASSWORD)
-#         server.send_message(msg)
 
 
 def send_verification_email(to_email: str, token: str):
@@ -136,3 +93,21 @@ async def verify_verification_token(token: str) -> str:
 
     except InvalidToken:
         raise ValueError("Invalid verification link")
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
+        return user_id
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
