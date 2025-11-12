@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel ,EmailStr
 from typing import Optional, Union, Dict
 
 
@@ -16,6 +16,9 @@ class VerifyOtpRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class SendVerificationRequest(BaseModel):
+    email: EmailStr
 
 
 class UserResponse(BaseModel):
