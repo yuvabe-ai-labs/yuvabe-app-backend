@@ -42,7 +42,13 @@ async def get_home_data(user_id: str, session: AsyncSession) -> HomeResponseData
     )
 
 
-async def add_or_update_emotion(data: EmotionLogCreate, session: AsyncSession):
+async def add_or_update_emotion(
+    data: EmotionLogCreate, session: AsyncSession
+) -> EmotionLogResponse:
+    user_exists = await session.exec(select(Users).where(Users.id == data.user_id))
+    if not user_exists.first():
+        raise ValueError("User not found. Cannot add emotion log.")
+
     result = await session.exec(
         select(EmotionLogs)
         .where(EmotionLogs.user_id == data.user_id)
@@ -55,18 +61,24 @@ async def add_or_update_emotion(data: EmotionLogCreate, session: AsyncSession):
             existing_log.morning_emotion = data.morning_emotion
         if data.evening_emotion is not None:
             existing_log.evening_emotion = data.evening_emotion
+        record = existing_log
     else:
-        new_log = EmotionLogs(
+        record = EmotionLogs(
             user_id=data.user_id,
             morning_emotion=data.morning_emotion,
             evening_emotion=data.evening_emotion,
             log_date=data.log_date,
         )
-        session.add(new_log)
+        session.add(record)
 
     await session.commit()
-    await session.refresh(existing_log or new_log)
-    return existing_log or new_log
+    await session.refresh(record)
+
+    return EmotionLogResponse(
+        log_date=record.log_date,
+        morning_emotion=record.morning_emotion,
+        evening_emotion=record.evening_emotion,
+    )
 
 
 async def get_emotions(user_id: str, session: AsyncSession):

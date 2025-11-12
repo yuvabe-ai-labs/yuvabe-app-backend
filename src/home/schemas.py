@@ -24,8 +24,3 @@ class HomeResponseData(BaseModel):
     user_name: str
     philosophy_text: str
     recent_emotions: List[EmotionLogResponse]
-
-
-class BaseResponse(BaseModel):
-    code: int
-    data: Union[dict, list, None] = None
