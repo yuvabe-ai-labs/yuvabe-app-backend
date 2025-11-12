@@ -56,7 +56,7 @@ async def verify_email_route(
     access_token = response["access_token"]
     redirect_url = f"yuvabe://verified?token={access_token}"
 
-    return {"code": 200, "data": response} , RedirectResponse(url=redirect_url)
+    return RedirectResponse(url=redirect_url)
 
 
 @router.post("/login", response_model=BaseResponse)
