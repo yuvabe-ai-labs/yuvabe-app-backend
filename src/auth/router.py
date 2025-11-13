@@ -114,6 +114,7 @@ async def get_home(
                 "id": str(user.id),
                 "name": user.user_name,
                 "email": user.email_id,
+                "is_verified": user.is_verified,
             },
             "home_data": {
                 "announcements": ["Welcome!", "New protocol released"],
