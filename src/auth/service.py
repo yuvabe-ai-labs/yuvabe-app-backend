@@ -126,7 +126,7 @@ async def login_user(session: Session, email: str, password: str):
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
     if not user.is_verified:
-        print(f"⚠️ User {user.email_id} logged in but not verified.")
+        raise HTTPException(status_code=400, detail="Verify email to login")
 
     access_token = create_access_token(
         data={"sub": str(user.id), "name": user.user_name, "email": user.email_id}
@@ -144,5 +144,6 @@ async def login_user(session: Session, email: str, password: str):
             "id": str(user.id),
             "name": user.user_name,
             "email": user.email_id,
+            "is_verified": user.is_verified,
         },
     }
