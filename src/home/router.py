@@ -9,7 +9,7 @@ from src.core.schemas import BaseResponse
 from .schemas import EmotionLogCreate, EmotionLogResponse, HomeResponseData
 from .service import add_or_update_emotion, get_emotions, get_home_data
 
-router = APIRouter(prefix="/home", tags=["Home"])
+router = APIRouter(tags=["Home"])
 
 
 @router.get("/{user_id}", response_model=BaseResponse[HomeResponseData])
