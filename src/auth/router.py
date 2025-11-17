@@ -8,7 +8,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from src.auth.service import (
     create_user,
     verify_email,
-    send_verification_link,
     login_user,
 )
 from src.auth.utils import get_current_user
@@ -37,26 +36,26 @@ async def signup(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/send-verification", response_model=BaseResponse)
-async def send_verification(
-    payload: SendVerificationRequest, session: AsyncSession = Depends(get_async_session)
-):
-    if not payload.email:
-        raise HTTPException(status_code=400, detail="Email is required")
+# @router.post("/send-verification", response_model=BaseResponse)
+# async def send_verification(
+#     payload: SendVerificationRequest, session: AsyncSession = Depends(get_async_session)
+# ):
+#     if not payload.email:
+#         raise HTTPException(status_code=400, detail="Email is required")
 
-    response = await send_verification_link(session, payload.email)
-    return {"code": 200, "data": response}
+#     response = await send_verification_link(session, payload.email)
+#     return {"code": 200, "data": response}
 
 
-@router.get("/verify-email", response_model=BaseResponse)
-async def verify_email_route(
-    token: str, session: AsyncSession = Depends(get_async_session)
-):
-    response = await verify_email(session, token)
-    access_token = response["access_token"]
-    redirect_url = f"yuvabe://verified?token={access_token}"
+# @router.get("/verify-email", response_model=BaseResponse)
+# async def verify_email_route(
+#     token: str, session: AsyncSession = Depends(get_async_session)
+# ):
+#     response = await verify_email(session, token)
+#     access_token = response["access_token"]
+#     redirect_url = f"yuvabe://verified?token={access_token}"
 
-    return RedirectResponse(url=redirect_url)
+#     return RedirectResponse(url=redirect_url)
 
 
 @router.post("/login", response_model=BaseResponse)
@@ -115,6 +114,8 @@ async def get_home(
                 "name": user.user_name,
                 "email": user.email_id,
                 "is_verified": user.is_verified,
+                "dob": user.dob.isoformat() if user.dob else None,
+                "profile_picture": user.profile_picture
             },
             "home_data": {
                 "announcements": ["Welcome!", "New protocol released"],
