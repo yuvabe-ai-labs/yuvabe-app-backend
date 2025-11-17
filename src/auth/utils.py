@@ -3,6 +3,8 @@ import smtplib
 import os
 import uuid
 from email.mime.text import MIMEText
+import logging
+import traceback
 from passlib.context import CryptContext
 from src.core.database import get_async_session
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -18,6 +20,7 @@ from src.core.config import settings
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.JWT_ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.JWT_EXPIRE
+logger = logging.getLogger(__name__)
 
 SMTP_SERVER = settings.EMAIL_SERVER
 SMTP_PORT = settings.EMAIL_PORT
@@ -50,28 +53,75 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
-def send_verification_email(to_email: str, token: str):
-    """Send email with verification link"""
-    subject = f"Verify your {settings.APP_NAME} Account"
-    verification_link = f"{VERIFICATION_BASE_URL}/auth/verify-email?token={token}"
-    body = f"""
-    Hi,
+# def send_verification_email(to_email: str, token: str):
+#     """Send verification email using smtplib with detailed debug logs."""
+#     subject = f"Verify your {settings.APP_NAME} Account"
+#     verification_link = f"{VERIFICATION_BASE_URL}/auth/verify-email?token={token}"
 
-    Please verify your {settings.APP_NAME} account by clicking the link below:
-    {verification_link}
+#     body = f"""
+#     Hi,
 
-    This link will expire in 24 hours.
-    """
+#     Please verify your {settings.APP_NAME} account by clicking the link below:
+#     {verification_link}
 
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = SMTP_EMAIL
-    msg["To"] = to_email
+#     This link will expire in 24 hours.
 
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_EMAIL, SMTP_PASSWORD)
-        server.send_message(msg)
+#     Regards,
+#     {settings.APP_NAME} Team
+#     """
+
+#     msg = MIMEText(body)
+#     msg["Subject"] = subject
+#     msg["From"] = SMTP_EMAIL
+#     msg["To"] = to_email
+
+#     logger.info("🟢 Starting send_verification_email()")
+#     logger.info(f"📨 To: {to_email}")
+#     logger.info(f"📤 SMTP Server: {SMTP_SERVER}:{SMTP_PORT}")
+
+#     try:
+#         logger.info("🔌 Connecting to SMTP server...")
+#         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as server:
+#             logger.info("✅ Connected successfully.")
+
+#             logger.info("🔒 Starting TLS...")
+#             server.starttls()
+#             logger.info("✅ TLS secured.")
+
+#             logger.info("🔑 Logging in to SMTP server...")
+#             server.login(SMTP_EMAIL, SMTP_PASSWORD)
+#             logger.info("✅ Logged in successfully.")
+
+#             # Send email
+#             logger.info("📧 Sending email message...")
+#             server.send_message(msg)
+#             logger.info(f"✅ Email successfully sent to {to_email}")
+
+#     except smtplib.SMTPAuthenticationError as e:
+#         logger.error("❌ Authentication failed — check email or app password.")
+#         logger.error(f"Error details: {e}")
+#         logger.error(traceback.format_exc())
+#         raise
+#     except smtplib.SMTPConnectError as e:
+#         logger.error("❌ Could not connect to SMTP server.")
+#         logger.error(f"Error details: {e}")
+#         logger.error(traceback.format_exc())
+#         raise
+#     except smtplib.SMTPRecipientsRefused as e:
+#         logger.error("❌ Recipient address refused.")
+#         logger.error(f"Error details: {e}")
+#         logger.error(traceback.format_exc())
+#         raise
+#     except smtplib.SMTPException as e:
+#         logger.error("❌ General SMTP error occurred.")
+#         logger.error(f"Error details: {e}")
+#         logger.error(traceback.format_exc())
+#         raise
+#     except Exception as e:
+#         logger.error("❌ Unknown error occurred while sending verification email.")
+#         logger.error(f"Error details: {e}")
+#         logger.error(traceback.format_exc())
+#         raise
 
 
 fernet = Fernet(FERNET_KEY.encode())

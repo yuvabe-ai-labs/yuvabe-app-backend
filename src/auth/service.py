@@ -6,7 +6,6 @@ from src.auth.utils import (
     verify_verification_token,
     create_access_token,
     hash_password,
-    send_verification_email,
     create_verification_token,
 )
 from src.core.models import Users
@@ -17,6 +16,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 async def create_user(session: AsyncSession, name: str, email: str, password: str):
     """Create user without sending email"""
+
+    if not email.lower().endswith("@yuvabe.com"):
+        raise HTTPException(status_code=400, detail="Enter you're Yuvabe email ID")
+
     user = await session.exec(select(Users).where(Users.email_id == email))
     existing_user = user.first()
     if existing_user:
@@ -26,7 +29,7 @@ async def create_user(session: AsyncSession, name: str, email: str, password: st
         user_name=name,
         email_id=email,
         password=hash_password(password),
-        is_verified=False,
+        is_verified=True,
     )
 
     session.add(new_user)
@@ -57,32 +60,32 @@ async def create_user(session: AsyncSession, name: str, email: str, password: st
     }
 
 
-async def send_verification_link(session: Session, email: str):
-    """Send verification email for an existing user."""
-    result = await session.exec(select(Users).where(Users.email_id == email))
-    user = result.first()
+# async def send_verification_link(session: Session, email: str):
+#     """Send verification email for an existing user."""
+#     result = await session.exec(select(Users).where(Users.email_id == email))
+#     user = result.first()
 
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.is_verified:
-        raise HTTPException(status_code=400, detail="User is already verified")
+#     if user.is_verified:
+#         raise HTTPException(status_code=400, detail="User is already verified")
 
-    # Create a token using existing user ID (opaque token)
-    token = create_verification_token(str(user.id))
+#     # Create a token using existing user ID (opaque token)
+#     token = create_verification_token(str(user.id))
 
-    try:
-        send_verification_email(email, token)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to send verification email: {str(e)}"
-        )
+#     try:
+#         send_verification_email(email, token)
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500, detail=f"Failed to send verification email: {str(e)}"
+#         )
 
-    return {
-        "message": "Verification link sent successfully",
-        "user_id": str(user.id),
-        "email": user.email_id,
-    }
+#     return {
+#         "message": "Verification link sent successfully",
+#         "user_id": str(user.id),
+#         "email": user.email_id,
+#     }
 
 
 async def verify_email(session: Session, token: str):
@@ -116,6 +119,10 @@ async def verify_email(session: Session, token: str):
 
 
 async def login_user(session: Session, email: str, password: str):
+
+    if not email.lower().endswith("@yuvabe.com"):
+        raise HTTPException(status_code=400, detail="Enter you're Yuvabe email ID")
+
     users = await session.exec(select(Users).where(Users.email_id == email))
     user = users.first()
 
