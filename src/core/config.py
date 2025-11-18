@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     FERNET_KEY: str
     VERIFICATION_BASE_URL: str
 
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str
+
+    AUTH_BASE: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    TOKEN_URL: str = "https://oauth2.googleapis.com/token"
+    GMAIL_SEND_SCOPE: str = "https://www.googleapis.com/auth/gmail.send"
+
     @computed_field
     @property
     def DATABASE_URL(self) -> PostgresDsn:
@@ -45,8 +53,9 @@ class Settings(BaseSettings):
         """Async DB URL"""
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}/{self.POSTGRES_DB}"
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
-
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=False, env_file_encoding="utf-8"
+    )
 
 
 settings = Settings()

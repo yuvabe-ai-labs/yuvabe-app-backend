@@ -1,3 +1,10 @@
+from src.profile.service import send_email_service
+from src.profile.schemas import SendMailRequest
+from src.profile.utils import build_auth_url
+from src.profile.utils import exchange_code_for_tokens
+from src.profile.service import USER_TOKEN_STORE
+from src.profile.utils import send_email
+from src.profile.service import list_user_assets
 from fastapi.routing import APIRouter
 from src.core.database import get_async_session
 from src.auth.utils import get_current_user
@@ -6,22 +13,65 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from fastapi.params import Depends
 from .schemas import UpdateProfileRequest
 from src.profile.service import update_user_profile
-from fastapi import APIRouter, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
-from src.core.database import get_async_session
-from src.auth.utils import get_current_user
-from src.assets.schemas import BaseResponse
-from src.assets.service import list_user_assets
-from src.leave.utils import send_email
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
-from src.auth.utils import get_current_user
 from src.core.models import Users, Teams, Roles, UserTeamsRole
-from fastapi import BackgroundTasks
 
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
+
+# src/routers/gmail_oauth_router.py
+from fastapi import APIRouter, Query, HTTPException
+from fastapi.responses import RedirectResponse, JSONResponse
+import httpx
+
+
+router = APIRouter(prefix="/gmail", tags=["Gmail OAuth"])
+
+
+@router.get("/login")
+def google_login(state: str | None = Query(None)):
+    return RedirectResponse(build_auth_url(state))
+
+
+@router.get("/callback")
+async def google_callback(code: str | None = None, state: str | None = None):
+    if not code:
+        raise HTTPException(400, "Missing code")
+
+    token_data = await exchange_code_for_tokens(code)
+    access_token = token_data["access_token"]
+    refresh_token = token_data.get("refresh_token")
+
+    # Get user info
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+    userinfo = r.json()
+
+    google_user_id = userinfo["sub"]
+    user_email = userinfo["email"]
+
+    USER_TOKEN_STORE[google_user_id] = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "email": user_email
+    }
+
+    return JSONResponse({
+        "status": "ok",
+        "user_id": google_user_id,
+        "email": user_email,
+        "state": state,
+    })
+
+
+@router.post("/send-mail")
+async def send_mail(req: SendMailRequest):
+    return await send_email_service(req)
+
 
 
 @router.get("/", response_model=BaseResponse)
@@ -54,7 +104,6 @@ async def update_profile(
 ):
     result = await update_user_profile(session, user_id, payload)
     return {"code": 200, "data": result}
-
 
 
 @router.get("/contacts", response_model=BaseResponse)
@@ -135,4 +184,3 @@ async def send_leave_email(
     background.add_task(send_email, to_email, subject, body, cc, from_email)
 
     return BaseResponse(code=200, message="Leave request sent", data=None)
-

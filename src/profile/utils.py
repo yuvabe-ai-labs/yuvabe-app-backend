@@ -3,6 +3,12 @@ import smtplib
 from email.message import EmailMessage
 from src.core.config import settings
 from typing import List
+import base64
+import httpx
+from typing import Dict, Optional
+from src.core.config import settings
+from urllib.parse import urlencode
+
 
 
 SMTP_HOST = settings.EMAIL_SERVER
@@ -10,6 +16,69 @@ SMTP_PORT = settings.EMAIL_PORT
 SMTP_USER = settings.EMAIL_USERNAME
 SMTP_PASS = settings.EMAIL_PASSWORD
 FROM_DEFAULT = settings.EMAIL_USERNAME
+
+# src/utils/gmail_utils.py
+
+
+def build_auth_url(state=None):
+    params = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": settings.GMAIL_SEND_SCOPE + " openid email profile",
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+
+    if state:
+        params["state"] = state
+
+    query = urlencode(params)
+    return f"{settings.AUTH_BASE}?{query}"
+
+
+async def exchange_code_for_tokens(code: str) -> Dict:
+    data = {
+        "code": code,
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code",
+    }
+
+    async with httpx.AsyncClient() as client:
+        r = await client.post(settings.TOKEN_URL, data=data)
+        r.raise_for_status()
+        return r.json()
+
+
+async def refresh_access_token(refresh_token: str) -> Dict:
+    data = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "refresh_token": refresh_token,
+        "grant_type": "refresh_token",
+    }
+
+    async with httpx.AsyncClient() as client:
+        r = await client.post(settings.TOKEN_URL, data=data)
+        r.raise_for_status()
+        return r.json()
+
+
+def build_raw_message(
+    to_email: str, subject: str, body: str, from_name: Optional[str], from_email: str
+) -> str:
+
+    msg = EmailMessage()
+    sender = f"{from_name} <{from_email}>" if from_name else from_email
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.set_content(body)
+
+    raw_bytes = msg.as_bytes()
+    return base64.urlsafe_b64encode(raw_bytes).decode()
 
 
 def send_email(
