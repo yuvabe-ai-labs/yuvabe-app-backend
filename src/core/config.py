@@ -1,0 +1,51 @@
+from pydantic import PostgresDsn, computed_field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class SMTPConfig(BaseSettings):
+    server: str
+    port: int
+    username: str
+    password: str
+
+
+class Settings(BaseSettings):
+
+    JWT_ALGORITHM: str
+    JWT_EXPIRE: int
+    SECRET_KEY: str
+
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_HOST: str
+    POSTGRES_DB: str
+
+    APP_NAME: str
+    ENV: str
+    DEBUG: bool
+    PORT: int
+
+    EMAIL_SERVER: str
+    EMAIL_PORT: int
+    EMAIL_USERNAME: str
+    EMAIL_PASSWORD: str
+
+    FERNET_KEY: str
+    VERIFICATION_BASE_URL: str
+
+    @computed_field
+    @property
+    def DATABASE_URL(self) -> PostgresDsn:
+        """Sync DB URL"""
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}/{self.POSTGRES_DB}"
+
+    @computed_field
+    @property
+    def ASYNC_DATABASE_URL(self) -> PostgresDsn:
+        """Async DB URL"""
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}/{self.POSTGRES_DB}"
+
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+
+
+settings = Settings()

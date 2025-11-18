@@ -9,3 +9,5 @@ short_description: Yuvabe App Backend
 ---
 
 Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+
+# YB's Wellness App FastAPI Backend
