@@ -1,8 +1,15 @@
+from src.core.models import Assets
+from ast import List
 from datetime import datetime
 import uuid
 from fastapi import HTTPException
 from passlib.context import CryptContext
 from src.core.models import Users
+import uuid
+from typing import List
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.models import Assets
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -63,3 +70,9 @@ async def update_user_profile(session, user_id: str, data):
             "is_verified": user.is_verified,
         },
     }
+
+async def list_user_assets(session: AsyncSession, user_id: str) -> List[Assets]:
+    q = await session.exec(
+        select(Assets).where(Assets.user_id == uuid.UUID(user_id))
+    )
+    return q.all()
