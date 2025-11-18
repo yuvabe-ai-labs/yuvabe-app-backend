@@ -1,10 +1,1 @@
----
-title: Yuvabe Backend App
-emoji: 👁
-colorFrom: pink
-colorTo: red
-sdk: docker
-pinned: false
----
-
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+# YB's Wellness App FastAPI Backend
