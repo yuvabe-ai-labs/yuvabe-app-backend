@@ -1,4 +1,6 @@
 # to run this file you need model.onnx_data on the assets/onnx folder or you can obtain it from here.: https://huggingface.co/onnx-community/embeddinggemma-300m-ONNX/tree/main/onnx
+# model can also be loaded directly from autoModel.pretrained by using the same link "onnx-community/embeddinggemma-300m-ONNX"
+
 import asyncio
 import os
 from typing import List
@@ -10,7 +12,8 @@ from transformers import AutoTokenizer
 
 BASE_DIR = os.path.dirname(__file__)
 
-TOKENIZER_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "assets", "tokenizer"))
+# TOKENIZER_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "assets", "tokenizer"))
+TOKENIZER_DIR = "onnx-community/embeddinggemma-300m-ONNX"
 
 # MODEL_DIR = os.path.abspath(
 #     os.path.join(BASE_DIR, "..", "assets", "onnx", "model.onnx")
@@ -20,9 +23,7 @@ TOKENIZER_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "assets", "tokenize
 class EmbeddingModel:
     def __init__(self):
         # print(TOKENIZER_DIR)
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            TOKENIZER_DIR, local_files_only=True
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_DIR)
 
         # sess_options = ort.SessionOptions()
         # providers = ["CPUExecutionProvider"]
@@ -82,6 +83,12 @@ class EmbeddingModel:
         # )
         # return vector
         return input_ids.flatten().tolist()
+
+
+def cleanup(self):
+    if self.session:
+        self.session = None
+        print("ONNX runtime session closed.")
 
 
 embedding_model = EmbeddingModel()
