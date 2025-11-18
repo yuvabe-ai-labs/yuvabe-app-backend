@@ -1,3 +1,6 @@
+from src.profile.utils import build_raw_message
+from src.profile.utils import refresh_access_token
+from src.profile.schemas import SendMailRequest
 from src.core.models import Assets
 from ast import List
 from datetime import datetime
@@ -10,8 +13,53 @@ from typing import List
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.models import Assets
+import httpx
+from src.core.config import settings
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+# In production, replace with DB storage
+USER_TOKEN_STORE = {}  # {google_user_id: {tokens}}
+
+
+async def send_email_service(req: SendMailRequest):
+    record = USER_TOKEN_STORE.get(req.user_id)
+    if not record:
+        raise HTTPException(404, "User not logged in with Google OAuth")
+
+    access_token = record["access_token"]
+    refresh_token = record.get("refresh_token")
+
+    if not access_token and refresh_token:
+        new_tokens = await refresh_access_token(refresh_token)
+        access_token = new_tokens["access_token"]
+        record["access_token"] = access_token
+
+    if not access_token:
+        raise HTTPException(400, "Re-auth required")
+
+    raw = build_raw_message(
+        to_email=req.to,
+        subject=req.subject,
+        body=req.body,
+        from_name=req.from_name,
+        from_email=record["email"],
+    )
+
+    url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+    payload = {"raw": raw}
+
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            url, json=payload, headers={"Authorization": f"Bearer {access_token}"}
+        )
+
+    if r.status_code >= 400:
+        raise HTTPException(500, f"Gmail error: {r.text}")
+
+    return r.json()
 
 
 async def update_user_profile(session, user_id: str, data):
@@ -71,8 +119,7 @@ async def update_user_profile(session, user_id: str, data):
         },
     }
 
+
 async def list_user_assets(session: AsyncSession, user_id: str) -> List[Assets]:
-    q = await session.exec(
-        select(Assets).where(Assets.user_id == uuid.UUID(user_id))
-    )
+    q = await session.exec(select(Assets).where(Assets.user_id == uuid.UUID(user_id)))
     return q.all()
