@@ -10,9 +10,6 @@ from fastapi import APIRouter, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.core.database import get_async_session
 from src.auth.utils import get_current_user
-from src.assets.schemas import BaseResponse
-from src.assets.service import list_user_assets
-from src.leave.utils import send_email
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
