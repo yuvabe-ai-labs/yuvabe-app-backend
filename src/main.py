@@ -1,11 +1,9 @@
 from fastapi import FastAPI
 
-from src.assets.router import router as assets
 from src.auth.router import router as auth_router
 from src.chatbot.router import router as chatbot
 from src.core.database import init_db
 from src.home.router import router as home_router
-from src.leave.router import router as leave
 from src.profile.router import router as profile
 
 app = FastAPI(title="Yuvabe App API")
