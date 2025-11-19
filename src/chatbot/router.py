@@ -88,17 +88,22 @@ async def semantic_search(
     q_vector = payload.embedding
     top_k = payload.top_k or 3
 
+    # Convert Python list → pgvector string format
+    q_vector_str = "[" + ",".join(str(x) for x in q_vector) + "]"
+
     sql = text(
         """
         SELECT id, kb_id, chunk_text, embedding <=> :query_vec AS score
         FROM knowledge_chunk
         ORDER BY embedding <=> :query_vec
         LIMIT :top_k
-    """
+        """
     )
 
-    rows = await session.exec(sql, {"query_vec": q_vector, "top_k": top_k})
-    rows = rows.fetchall()
+    result = await session.execute(
+        sql, {"query_vec": q_vector_str, "top_k": top_k}
+    )
+    rows = result.fetchall()
 
     return [
         SemanticSearchResult(
@@ -109,3 +114,4 @@ async def semantic_search(
         )
         for r in rows
     ]
+
