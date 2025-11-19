@@ -13,7 +13,7 @@ app = FastAPI(title="Yuvabe App API")
 
 app.include_router(home_router, prefix="/home", tags=["Home"])
 
-# init_db()
+init_db()
 
 app.include_router(auth_router)
 
