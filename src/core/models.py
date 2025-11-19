@@ -1,7 +1,11 @@
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import Column, String
 import uuid
 from datetime import date, datetime
 from enum import Enum
 from typing import List, Optional
+from src.profile.models import Leaves
+
 
 from sqlalchemy import CheckConstraint, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
