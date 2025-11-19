@@ -16,17 +16,113 @@ from src.profile.service import update_user_profile
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlmodel import select
 from src.core.models import Users, Teams, Roles, UserTeamsRole
+from fastapi import APIRouter, Query, HTTPException
+from fastapi.responses import RedirectResponse, JSONResponse
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlmodel.ext.asyncio.session import AsyncSession
+from src.auth.utils import get_current_user  # adjust path
+from src.profile.schemas import (
+    ApplyLeaveRequest,
+    ApproveRejectRequest,
+    LeaveResponse,
+    BalanceResponse,
+    DeviceTokenIn,
+)
+from src.profile import service
+from typing import List
 
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
-# src/routers/gmail_oauth_router.py
-from fastapi import APIRouter, Query, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse
-import httpx
+
+@router.post("/apply", response_model=LeaveResponse)
+async def apply_leave_endpoint(
+    payload: ApplyLeaveRequest,
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    user_id = current_user
+    leave = await service.apply_leave(session, user_id, payload)
+    return leave
 
 
-router = APIRouter(prefix="/gmail", tags=["Gmail OAuth"])
+@router.get("/pending", response_model=List[LeaveResponse])
+async def pending_leaves(
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    user_id = current_user
+    leaves = await service.get_pending_leaves_for_approver(session, user_id)
+    return leaves
+
+
+@router.get("/my", response_model=List[LeaveResponse])
+async def my_leaves(
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    leaves = await service.get_my_leaves(session, current_user)
+    return leaves
+
+
+@router.get("/team", response_model=List[LeaveResponse])
+async def team_leaves(
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    leaves = await service.get_team_leaves(session, current_user)
+    return leaves
+
+
+@router.post("/{leave_id}/approve", response_model=LeaveResponse)
+async def approve_leave_endpoint(
+    leave_id: str,
+    payload: ApproveRejectRequest,
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    leave = await service.approve_leave(
+        session, current_user, leave_id, comment=payload.comment
+    )
+    return leave
+
+
+@router.post("/{leave_id}/reject", response_model=LeaveResponse)
+async def reject_leave_endpoint(
+    leave_id: str,
+    payload: ApproveRejectRequest,
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    leave = await service.reject_leave(
+        session,
+        current_user,
+        leave_id,
+        reject_reason=payload.reject_reason,
+        comment=payload.comment,
+    )
+    return leave
+
+
+@router.get("/balance", response_model=List[BalanceResponse])
+async def get_balance(
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    return await service.get_leave_balance(session, current_user)
+
+
+@router.post("/device-token")
+async def save_device_token(
+    payload: DeviceTokenIn,
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    tokens = await service.add_device_token(session, current_user, payload.device_token)
+    return {"status": "ok", "tokens": tokens}
+
+
 
 
 @router.get("/login")
@@ -47,7 +143,7 @@ async def google_callback(code: str | None = None, state: str | None = None):
     async with httpx.AsyncClient() as client:
         r = await client.get(
             "https://www.googleapis.com/oauth2/v3/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
     userinfo = r.json()
 
@@ -57,21 +153,22 @@ async def google_callback(code: str | None = None, state: str | None = None):
     USER_TOKEN_STORE[google_user_id] = {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "email": user_email
+        "email": user_email,
     }
 
-    return JSONResponse({
-        "status": "ok",
-        "user_id": google_user_id,
-        "email": user_email,
-        "state": state,
-    })
+    return JSONResponse(
+        {
+            "status": "ok",
+            "user_id": google_user_id,
+            "email": user_email,
+            "state": state,
+        }
+    )
 
 
 @router.post("/send-mail")
 async def send_mail(req: SendMailRequest):
     return await send_email_service(req)
-
 
 
 @router.get("/", response_model=BaseResponse)

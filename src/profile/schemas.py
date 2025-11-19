@@ -1,7 +1,46 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr ,Field
+from typing import Optional,List
 import uuid
 from enum import Enum
+from datetime import date
+
+
+class ApplyLeaveRequest(BaseModel):
+    leave_type: str
+    from_date: date
+    to_date: date
+    reason: Optional[str] = None
+
+class ApproveRejectRequest(BaseModel):
+    comment: Optional[str] = None
+    reject_reason: Optional[str] = None  # used for reject endpoint
+
+class LeaveResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    mentor_id: uuid.UUID
+    lead_id: uuid.UUID
+    leave_type: str
+    from_date: date
+    to_date: date
+    days: int
+    reason: Optional[str]
+    status: str
+    approved_by: Optional[uuid.UUID]
+    approved_at: Optional[str]
+    reject_reason: Optional[str]
+    comment: Optional[str]
+
+class BalanceResponse(BaseModel):
+    leave_type: str
+    limit: int
+    used: int
+    remaining: int
+
+class DeviceTokenIn(BaseModel):
+    device_token: str
+    device_type: Optional[str] = None
+
 
 
 class AssetStatus(str, Enum):
