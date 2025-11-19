@@ -15,7 +15,7 @@ from .schemas import UpdateProfileRequest
 from src.profile.service import update_user_profile
 from sqlmodel import select
 from src.core.models import Users, Teams, Roles, UserTeamsRole
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException ,BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
