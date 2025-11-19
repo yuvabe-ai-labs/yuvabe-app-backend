@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from fastapi.params import Depends
 from .schemas import UpdateProfileRequest
 from src.profile.service import update_user_profile
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlmodel import select
 from src.core.models import Users, Teams, Roles, UserTeamsRole
 from fastapi import APIRouter, Query, HTTPException
