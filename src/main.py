@@ -19,10 +19,6 @@ app.include_router(auth_router)
 
 app.include_router(profile)
 
-# app.include_router(assets)
-
-# app.include_router(leave)
-
 app.include_router(chatbot)
 
 
