@@ -9,10 +9,10 @@ MODEL_ID = "onnx-community/embeddinggemma-300m-ONNX"
 
 class EmbeddingModel:
     def __init__(self):
-        print("🔵 Loading tokenizer…")
+        print("Loading tokenizer…")
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
-        print("🔵 Downloading ONNX model files…")
+        print("Downloading ONNX model files…")
 
         self.model_path = hf_hub_download(
             repo_id=MODEL_ID,
@@ -25,7 +25,7 @@ class EmbeddingModel:
 
         model_dir = os.path.dirname(self.model_path)
 
-        print("🔵 Creating inference session…")
+        print("Creating inference session…")
         self.session = ort.InferenceSession(
             self.model_path,
             providers=["CPUExecutionProvider"],
