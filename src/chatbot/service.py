@@ -1,7 +1,7 @@
 import os
-
+from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
-
+from sqlmodel import select
 from .embedding import embedding_model
 from .models import KnowledgeBase, KnowledgeChunk
 from .utils import (
@@ -43,3 +43,29 @@ async def process_pdf_and_store(
     await session.commit()
 
     return {"kb_id": kb.id, "name": kb_name, "chunks_stored": len(chunk_objs)}
+
+async def store_manual_text(kb_id: UUID, text: str, session: AsyncSession):
+    embedding = await embedding_model.embed_text(text)
+
+    result = await session.execute(
+        select(KnowledgeChunk).where(KnowledgeChunk.kb_id == kb_id)
+    )
+    existing = result.scalars().all()
+    next_index = len(existing)
+
+    new_chunk = KnowledgeChunk(
+        kb_id=kb_id,
+        chunk_index=next_index,
+        chunk_text=text,
+        embedding=embedding
+    )
+
+    session.add(new_chunk)
+    await session.commit()
+
+    return {
+        "kb_id": kb_id,
+        "chunk_index": next_index,
+        "status": "stored",
+        "text": text
+    }

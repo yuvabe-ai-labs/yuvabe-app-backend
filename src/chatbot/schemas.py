@@ -34,3 +34,7 @@ class SemanticSearchResult(BaseModel):
     kb_id: str
     text: str
     score: float
+
+class ManualTextRequest(BaseModel):
+    kb_id: uuid.UUID
+    text: str
