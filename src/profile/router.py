@@ -15,7 +15,7 @@ from .schemas import UpdateProfileRequest
 from src.profile.service import update_user_profile
 from sqlmodel import select
 from src.core.models import Users, Teams, Roles, UserTeamsRole
-from fastapi import APIRouter, Query, HTTPException ,BackgroundTasks
+from fastapi import APIRouter, Query, HTTPException, BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -120,8 +120,6 @@ async def save_device_token(
 ):
     tokens = await service.add_device_token(session, current_user, payload.device_token)
     return {"status": "ok", "tokens": tokens}
-
-
 
 
 @router.get("/login")
@@ -259,6 +257,61 @@ async def get_leave_contacts(
         cc = [str(row.email_id) for row in hr_users]
 
     return BaseResponse(code=200, message="success", data={"to": to_email, "cc": cc})
+
+
+@router.get("/details", response_model=BaseResponse)
+async def get_profile_details(
+    current_user=Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    user_id = current_user
+
+    # 1) Get the user
+    user = await session.get(Users, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 2) Get user's team mapping
+    user_team = (
+        await session.exec(
+            select(UserTeamsRole).where(UserTeamsRole.user_id == user_id)
+        )
+    ).first()
+
+    if not user_team:
+        raise HTTPException(status_code=404, detail="User does not belong to any team")
+
+    # 3) Get team name
+    team = await session.get(Teams, user_team.team_id)
+
+    # 4) Find mentor (team lead)
+    lead_role = (
+        await session.exec(select(Roles).where(Roles.name == "Mentor"))
+    ).first()
+
+    mentor_users = (
+        await session.exec(
+            select(Users)
+            .join(UserTeamsRole)
+            .where(UserTeamsRole.team_id == user_team.team_id)
+            .where(UserTeamsRole.role_id == lead_role.id)
+        )
+    ).all()
+
+    mentor_names = [u.user_name for u in mentor_users]
+    mentor_emails = [u.email_id for u in mentor_users]
+
+    return BaseResponse(
+        code=200,
+        message="success",
+        data={
+            "name": user.user_name,
+            "email": user.email_id,
+            "team_name": team.name,
+            "mentor_name": ", ".join(mentor_names),
+            "mentor_email": ", ".join(mentor_emails),
+        },
+    )
 
 
 @router.post("/send", response_model=BaseResponse)
