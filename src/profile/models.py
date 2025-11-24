@@ -1,39 +1,45 @@
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import Column, String
 import uuid
 from datetime import date, datetime
-from typing import Optional
-from sqlmodel import SQLModel, Field
 from enum import Enum
+from typing import List, Optional
 
+from sqlmodel import Field, Relationship, SQLModel
+
+class LeaveType(str, Enum):
+    SICK = "Sick"
+    CASUAL = "Casual"
+    EMERGENCY = "Emergency"
 
 class LeaveStatus(str, Enum):
-    PENDING = "PENDING"
-    APPROVED = "APPROVED"
-    REJECTED = "REJECTED"
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+    PENDING = "Pending"
 
-
-class Leaves(SQLModel, table=True):
-    __tablename__ = "leaves"
-
+class Leave(SQLModel, table=True):
+    __tablename__ = "leave"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
-    # Foreign keys (users table)
     user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
     mentor_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
     lead_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
-
-    leave_type: str = Field(nullable=False)
+    leave_type: LeaveType = Field(default=LeaveType.SICK)
     from_date: date = Field(nullable=False)
     to_date: date = Field(nullable=False)
-    days: int = Field(nullable=False)
-    reason: Optional[str] = None
-
+    days: Optional[int] = 1
+    reason: str = Field(nullable=True)
     status: LeaveStatus = Field(default=LeaveStatus.PENDING)
-
-    approved_by: Optional[uuid.UUID] = Field(foreign_key="users.id", default=None)
-    approved_at: Optional[datetime] = None
+    is_delivered: bool = Field(default= False)
+    requested_at: date = Field(default_factory=date.today)
+    updated_at: date = Field(default_factory=date.today)
     reject_reason: Optional[str] = None
 
-    comment: Optional[str] = None
-
-    created_at: datetime = Field(default_factory=datetime.now)
+class UserDevices(SQLModel, table=True):
+    __tablename__ = "user_devices"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
+    device_token: str
+    last_seen: datetime = Field(default_factory=datetime.now)
+    device_model: str
+    platform: str
     updated_at: datetime = Field(default_factory=datetime.now)
