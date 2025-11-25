@@ -25,7 +25,7 @@ from src.profile.schemas import (
 from src.profile.service import create_leave, mentor_decide_leave
 
 
-# router = APIRouter(prefix="/profile", tags=["Profile"])
+router = APIRouter(prefix="/profile", tags=["Profile"])
 
 
 @router.post("/request", response_model=LeaveResponse)

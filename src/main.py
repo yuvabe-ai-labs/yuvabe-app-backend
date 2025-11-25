@@ -2,11 +2,11 @@ from fastapi import FastAPI
 
 import os
 from src.auth.router import router as auth_router
-from src.chatbot.router import router as chatbot
+from src.chatbot.router import router as chatbot_router
 from src.core.database import init_db
 from src.home.router import router as home_router
 from src.notifications.router import router as notifications_router
-
+from src.profile.router import router as profile
 from fastapi.staticfiles import StaticFiles
 
 
@@ -17,16 +17,11 @@ app.include_router(home_router, prefix="/home", tags=["Home"])
 
 # init_db()
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-AUDIO_DIR = os.path.join(BASE_DIR, "static", "audio")
-
 app.include_router(profile)
-app.mount("/static/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
-print("Serving audio from:", AUDIO_DIR)
 
 app.include_router(auth_router)
 
-app.include_router(chatbot)
+app.include_router(chatbot_router)
 
 app.include_router(notifications_router)
 
