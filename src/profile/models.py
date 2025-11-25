@@ -15,6 +15,7 @@ class LeaveType(str, Enum):
 class LeaveStatus(str, Enum):
     APPROVED = "Approved"
     REJECTED = "Rejected"
+    CANCELLED = "Cancelled"
     PENDING = "Pending"
 
 class Leave(SQLModel, table=True):
@@ -30,6 +31,7 @@ class Leave(SQLModel, table=True):
     reason: str = Field(nullable=True)
     status: LeaveStatus = Field(default=LeaveStatus.PENDING)
     is_delivered: bool = Field(default= False)
+    is_read: bool = Field(default=False)
     requested_at: date = Field(default_factory=date.today)
     updated_at: date = Field(default_factory=date.today)
     reject_reason: Optional[str] = None
