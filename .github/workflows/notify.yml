@@ -1,0 +1,26 @@
+name: Daily Emotion Check-In Notifications
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+    - cron: "15 11 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call notify-all endpoint
+        run: |
+          curl -X POST "http://192.168.0.108:8080/home/notify/all" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "title": "Jimbal Kae Sambar",
+              "body": "Chitu'\''s Sunday party",
+              "data": {
+                "type": "home_alert",
+                "message": "Chitu invited you to Sunday party!"
+              }
+            }'

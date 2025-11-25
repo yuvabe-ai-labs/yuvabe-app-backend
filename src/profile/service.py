@@ -1,26 +1,24 @@
-# from src.profile.utils import build_raw_message, refresh_access_token
-# from src.profile.schemas import SendMailRequest
-# from src.core.models import Assets, Users
-# from datetime import datetime
-# import uuid
-# from fastapi import HTTPException
-# from passlib.context import CryptContext
-# from src.core.models import Users
-# import uuid
-# from typing import List
-# from sqlmodel import select
-# from sqlmodel.ext.asyncio.session import AsyncSession
-# import httpx
-# from src.core.config import settings
-# from typing import List, Optional
-# from sqlmodel import select
-# from sqlmodel.ext.asyncio.session import AsyncSession
-# from fastapi import HTTPException
-# from datetime import datetime
-# from src.profile.schemas import ApplyLeaveRequest, ApproveRejectRequest
-# from src.profile.utils import calculate_days, find_mentor_and_lead
-# from src.profile.utils import get_tokens_for_user, send_push_to_tokens
-# from src.core.config import settings
+from src.notifications.service import get_user_device_tokens
+from src.profile.utils import build_raw_message, refresh_access_token
+from src.profile.schemas import SendMailRequest
+from src.core.models import Assets, Users, UserTeamsRole, Roles
+from fastapi import HTTPException
+from passlib.context import CryptContext
+import httpx
+from src.core.config import settings
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from datetime import datetime
+import uuid
+from typing import List
+from src.profile.models import (
+    Leave,
+    UserDevices,
+)
+from src.profile.notify import send_leave_request_notification
+
+from src.profile.schemas import CreateLeaveRequest, LeaveStatus, ApproveRejectRequest
+from src.notifications.fcm import send_fcm
 
 
 # pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -30,6 +28,151 @@
 # # Leave limits (you can move to config)
 # SICK_LIMIT = getattr(settings, "SICK_LEAVE_LIMIT", 10)
 # CASUAL_LIMIT = getattr(settings, "CASUAL_LEAVE_LIMIT", 10)
+
+
+async def _get_team_roles(session: AsyncSession, user_id: uuid.UUID):
+    """
+    Find user's team, mentor and team lead in that team.
+    """
+    # 1) Get user's team mapping
+    user_team = (
+        await session.exec(
+            select(UserTeamsRole).where(UserTeamsRole.user_id == user_id)
+        )
+    ).first()
+
+    if not user_team:
+        raise ValueError("User has no team mapping")
+
+    # 2) Get Mentor role
+    mentor_role = (
+        await session.exec(select(Roles).where(Roles.name == "Mentor"))
+    ).first()
+    if not mentor_role:
+        raise ValueError("Mentor role not found")
+
+    # 3) Get Team Lead role
+    lead_role = (
+        await session.exec(select(Roles).where(Roles.name == "Team Lead"))
+    ).first()
+    if not lead_role:
+        raise ValueError("Team Lead role not found")
+
+    # 4) Find mentor in same team
+    mentor_user = (
+        await session.exec(
+            select(Users)
+            .join(UserTeamsRole, UserTeamsRole.user_id == Users.id)
+            .where(UserTeamsRole.team_id == user_team.team_id)
+            .where(UserTeamsRole.role_id == mentor_role.id)
+        )
+    ).first()
+
+    if not mentor_user:
+        raise ValueError("Mentor not found in user's team")
+
+    # 5) Find team lead in same team
+    lead_user = (
+        await session.exec(
+            select(Users)
+            .join(UserTeamsRole, UserTeamsRole.user_id == Users.id)
+            .where(UserTeamsRole.team_id == user_team.team_id)
+            .where(UserTeamsRole.role_id == lead_role.id)
+        )
+    ).first()
+
+    if not lead_user:
+        raise ValueError("Team Lead not found in user's team")
+
+    return mentor_user, lead_user
+
+
+async def _get_tokens_for_users(
+    session: AsyncSession, user_ids: List[uuid.UUID]
+) -> List[str]:
+    """
+    Get all device tokens for all given users.
+    """
+    tokens: List[str] = []
+    for uid in user_ids:
+        rows = (
+            await session.exec(select(UserDevices).where(UserDevices.user_id == uid))
+        ).all()
+        for row in rows:
+            if row.device_token:
+                tokens.append(row.device_token)
+    return tokens
+
+
+async def create_leave(session, user_id, body):
+    # Get the user
+    user = await session.get(Users, user_id)
+
+    # Get mentor + team lead
+    mentor_user, lead_user = await _get_team_roles(session, user_id)
+
+    leave = Leave(
+        user_id=user_id,
+        leave_type=body.leave_type,
+        from_date=body.from_date,
+        to_date=body.to_date,
+        reason=body.reason,
+        days=body.days,
+        mentor_id=mentor_user.id,
+        lead_id=lead_user.id,
+    )
+
+    session.add(leave)
+    await session.commit()
+    await session.refresh(leave)
+
+    # Send notification
+    await send_leave_request_notification(
+        session,
+        user,
+        leave,
+        leave.mentor_id,
+        leave.lead_id,
+    )
+
+    return leave
+
+
+async def mentor_decide_leave(session, mentor_id, leave_id, body):
+    leave = await session.get(Leave, leave_id)
+    if not leave:
+        raise ValueError("Leave not found")
+
+    mentor = await session.get(Users, mentor_id)
+    if not mentor:
+        raise ValueError("Mentor not found")
+
+    # Update leave status
+    leave.status = body.status
+    leave.updated_at = datetime.utcnow()
+
+    if body.status == LeaveStatus.REJECTED:
+        leave.reject_reason = body.comment
+
+    await session.commit()
+    await session.refresh(leave)
+
+    # 🔥 Send notification to USER
+    from src.profile.notify import send_leave_status_notification
+
+    await send_leave_status_notification(session, leave, mentor.user_name)
+
+    # 🔥 Send notification to TEAM LEAD also
+    tokens = await get_user_device_tokens(session, leave.lead_id)
+
+    await send_fcm(
+        tokens,
+        "Leave Update",
+        f"{leave.user_id} leave was {body.status.lower()}",
+        {"type": "leave_status"},
+    )
+
+    return leave
 
 
 # async def apply_leave(session: AsyncSession, user_id, payload: ApplyLeaveRequest):
