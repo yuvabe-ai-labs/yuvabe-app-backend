@@ -135,7 +135,7 @@ async def create_leave(session, user_id, body):
         leave.lead_id,
     )
 
-#     return leave
+    return leave
 
 
 async def mentor_decide_leave(session, mentor_id, leave_id, body):
@@ -172,7 +172,7 @@ async def mentor_decide_leave(session, mentor_id, leave_id, body):
         {"type": "leave_status"},
     )
 
-#     return leave
+    return leave
 
 
 # async def apply_leave(session: AsyncSession, user_id, payload: ApplyLeaveRequest):
