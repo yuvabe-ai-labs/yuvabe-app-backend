@@ -1,3 +1,4 @@
+from src.profile.schemas import LeaveDetailResponse
 from src.core.database import get_async_session
 from src.auth.utils import get_current_user
 from src.profile.models import Leave, LeaveType, LeaveStatus
@@ -75,8 +76,6 @@ async def mentor_decision_route(
             status_code=400,
             detail="Comment is required when rejecting leave",
         )
-
-
 
     try:
         leave = await mentor_decide_leave(session, mentor_uuid, leave_uuid, body)
@@ -212,33 +211,42 @@ async def list_notifications(
     return {"code": 200, "data": notifications}
 
 
-@router.get("/leave/{leave_id}")
+@router.get("/leave/{leave_id}", response_model=LeaveDetailResponse)
 async def get_leave_details(
     leave_id: str,
     session: AsyncSession = Depends(get_async_session),
     user_id: str = Depends(get_current_user),
 ):
-    leave = await session.get(Leave, leave_id)
+    # Join Leave + Users table to get user_name
+    stmt = (
+        select(Leave, Users.user_name)
+        .join(Users, Users.id == Leave.user_id)
+        .where(Leave.id == uuid.UUID(leave_id))
+    )
 
-    if not leave:
+    row = (await session.exec(stmt)).first()
+
+    if not row:
         raise HTTPException(status_code=404, detail="Leave not found")
 
-    # Convert to JSON response
+    leave, user_name = row
+
     return {
         "code": 200,
         "data": {
             "id": str(leave.id),
             "user_id": str(leave.user_id),
+            "user_name": user_name,
             "mentor_id": str(leave.mentor_id),
             "lead_id": str(leave.lead_id),
             "leave_type": leave.leave_type,
-            "from_date": str(leave.from_date),
-            "to_date": str(leave.to_date),
+            "from_date": leave.from_date.isoformat(),
+            "to_date": leave.to_date.isoformat(),
             "days": leave.days,
             "reason": leave.reason,
             "status": leave.status,
             "reject_reason": leave.reject_reason,
-            "updated_at": leave.updated_at.isoformat(),
+            "updated_at": leave.updated_at.isoformat() if leave.updated_at else None,
         },
     }
 
@@ -248,30 +256,120 @@ async def mentor_pending_leaves(
     session: AsyncSession = Depends(get_async_session),
     mentor_id: str = Depends(get_current_user),
 ):
-    stmt = select(Leave).where(
-        Leave.mentor_id == mentor_id,
-        Leave.status == LeaveStatus.PENDING,
+    print("🔥 mentor pending called for:", mentor_id)
+
+    stmt = (
+        select(Leave, Users.user_name)
+        .join(Users, Users.id == Leave.user_id)
+        .where(
+            Leave.mentor_id == uuid.UUID(mentor_id),
+            Leave.status == LeaveStatus.PENDING,
+        )
     )
 
     rows = (await session.exec(stmt)).all()
 
+    result = []
+
+    for leave, user_name in rows:
+        result.append(
+            LeaveResponse(
+                id=str(leave.id),
+                leave_type=leave.leave_type,
+                from_date=leave.from_date.isoformat(),
+                to_date=leave.to_date.isoformat(),
+                days=leave.days,
+                reason=leave.reason,
+                status=(
+                    leave.status.value
+                    if hasattr(leave.status, "value")
+                    else leave.status
+                ),
+                mentor_id=str(leave.mentor_id),
+                lead_id=str(leave.lead_id),
+                user_name=user_name,
+                updated_at=(
+                    leave.updated_at.isoformat()
+                    if hasattr(leave, "updated_at") and leave.updated_at
+                    else None
+                ),
+            )
+        )
+
     return {
         "code": 200,
-        "data": [
-            LeaveResponse(
-                id=str(r.id),
-                leave_type=r.leave_type,
-                from_date=r.from_date,
-                to_date=r.to_date,
-                days=r.days,
-                reason=r.reason,
-                status=r.status,
-                mentor_id=str(r.mentor_id),
-                lead_id=str(r.lead_id),
-            )
-            for r in rows
-        ],
+        "data": result,
     }
+
+
+@router.get("/my-leaves")
+async def my_leave_history(
+    session: AsyncSession = Depends(get_async_session),
+    user_id: str = Depends(get_current_user),
+):
+    stmt = (
+        select(Leave, Users.user_name, Users.email_id)
+        .join(Users, Users.id == Leave.mentor_id, isouter=True)
+        .where(Leave.user_id == uuid.UUID(user_id))
+        .order_by(desc(Leave.updated_at))
+    )
+
+    rows = (await session.exec(stmt)).all()
+
+    result = []
+    for leave, mentor_name, mentor_email in rows:
+        result.append(
+            {
+                "id": str(leave.id),
+                "leave_type": leave.leave_type,
+                "from_date": leave.from_date.isoformat(),
+                "to_date": leave.to_date.isoformat(),
+                "days": leave.days,
+                "reason": leave.reason,
+                "status": leave.status,
+                "mentor_name": mentor_name,
+                "updated_at": (
+                    leave.updated_at.isoformat() if leave.updated_at else None
+                ),
+            }
+        )
+
+    return {"code": 200, "data": result}
+
+
+@router.get("/mentor/team-leaves")
+async def team_leave_history(
+    session: AsyncSession = Depends(get_async_session),
+    mentor_id: str = Depends(get_current_user),
+):
+    stmt = (
+        select(Leave, Users.user_name)
+        .join(Users, Users.id == Leave.user_id)
+        .where(Leave.mentor_id == uuid.UUID(mentor_id))
+        .order_by(desc(Leave.updated_at))
+    )
+
+    rows = (await session.exec(stmt)).all()
+
+    result = []
+    for leave, username in rows:
+        result.append(
+            {
+                "id": str(leave.id),
+                "user_name": username,
+                "leave_type": leave.leave_type,
+                "from_date": leave.from_date.isoformat(),
+                "to_date": leave.to_date.isoformat(),
+                "days": leave.days,
+                "reason": leave.reason,
+                "status": leave.status,
+                "updated_at": (
+                    leave.updated_at.isoformat() if leave.updated_at else None
+                ),
+            }
+        )
+
+    return {"code": 200, "data": result}
 
 
 @router.get("/contacts", response_model=BaseResponse)
