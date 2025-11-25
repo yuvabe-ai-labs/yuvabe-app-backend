@@ -1,6 +1,8 @@
 from src.profile.schemas import LeaveDetailResponse
 from src.core.database import get_async_session
 from src.auth.utils import get_current_user
+from src.notifications.service import get_user_device_tokens
+from src.notifications.fcm import send_fcm
 from src.profile.models import Leave, LeaveType, LeaveStatus
 from src.auth.schemas import BaseResponse
 from sqlalchemy import desc
@@ -21,8 +23,8 @@ from src.profile.schemas import (
     CreateLeaveRequest,
     LeaveResponse,
     ApproveRejectRequest,
-    LeaveStatus,
 )
+from datetime import datetime
 from src.profile.service import create_leave, mentor_decide_leave
 
 
@@ -158,7 +160,6 @@ async def list_notifications(
     session: AsyncSession = Depends(get_async_session),
     user_id: str = Depends(get_current_user),
 ):
-    from src.profile.models import Leave
 
     stmt = (
         select(Leave)
@@ -205,6 +206,7 @@ async def list_notifications(
                 "to_date": str(leave.to_date),
                 "reject_reason": leave.reject_reason,
                 "reason": leave.reason,
+                "is_read": leave.is_read,
             }
         )
 
@@ -484,3 +486,69 @@ async def get_profile_details(
             "mentor_email": ", ".join(mentor_emails),
         },
     )
+
+
+@router.post("/leave/{leave_id}/cancel")
+async def cancel_leave(
+    leave_id: str,
+    session: AsyncSession = Depends(get_async_session),
+    user_id: str = Depends(get_current_user),
+):
+    leave = await session.get(Leave, uuid.UUID(leave_id))
+
+    if not leave:
+        raise HTTPException(status_code=404, detail="Leave not found")
+
+    # User must own this leave
+    if str(leave.user_id) != user_id:
+        raise HTTPException(status_code=403, detail="Not your leave")
+
+    # Only approved leaves can be cancelled
+    if leave.status not in [LeaveStatus.APPROVED, LeaveStatus.PENDING]:
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending or approved leaves can be cancelled",
+        )
+
+    # Check if leave date is future
+    from datetime import date
+
+    if leave.from_date <= date.today():
+        raise HTTPException(
+            status_code=400,
+            detail="Past or current day leaves cannot be cancelled",
+        )
+
+    # Update leave status
+    leave.status = LeaveStatus.CANCELLED
+    leave.updated_at = datetime.utcnow()
+    await session.commit()
+
+    user = await session.get(Users, leave.user_id)
+
+    # Notify mentor
+    mentor_tokens = await get_user_device_tokens(session, leave.mentor_id)
+    await send_fcm(
+        mentor_tokens,
+        "Leave Cancelled",
+        f"{user.user_name} cancelled their approved leave.",
+        {"type": "leave_cancel", "leave_id": str(leave.id)},
+    )
+
+    # Notify Team Lead
+    lead_tokens = await get_user_device_tokens(session, leave.lead_id)
+    await send_fcm(
+        lead_tokens,
+        "Leave Cancelled",
+        f"User {user.user_name} cancelled their approved leave.",
+        {"type": "leave_cancel", "leave_id": str(leave.id)},
+    )
+
+    return {
+        "code": 200,
+        "message": "Leave cancelled successfully",
+        "data": {
+            "id": str(leave.id),
+            "status": leave.status,
+        },
+    }
