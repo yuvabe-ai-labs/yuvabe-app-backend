@@ -21,13 +21,13 @@ from src.profile.schemas import CreateLeaveRequest, LeaveStatus, ApproveRejectRe
 from src.notifications.fcm import send_fcm
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# src/profile/service.py
+# # src/profile/service.py
 
-# Leave limits (you can move to config)
-SICK_LIMIT = getattr(settings, "SICK_LEAVE_LIMIT", 10)
-CASUAL_LIMIT = getattr(settings, "CASUAL_LEAVE_LIMIT", 10)
+# # Leave limits (you can move to config)
+# SICK_LIMIT = getattr(settings, "SICK_LEAVE_LIMIT", 10)
+# CASUAL_LIMIT = getattr(settings, "CASUAL_LEAVE_LIMIT", 10)
 
 
 async def _get_team_roles(session: AsyncSession, user_id: uuid.UUID):
@@ -135,7 +135,7 @@ async def create_leave(session, user_id, body):
         leave.lead_id,
     )
 
-    return leave
+#     return leave
 
 
 async def mentor_decide_leave(session, mentor_id, leave_id, body):
@@ -172,7 +172,7 @@ async def mentor_decide_leave(session, mentor_id, leave_id, body):
         {"type": "leave_status"},
     )
 
-    return leave
+#     return leave
 
 
 # async def apply_leave(session: AsyncSession, user_id, payload: ApplyLeaveRequest):
@@ -377,25 +377,25 @@ async def mentor_decide_leave(session, mentor_id, leave_id, body):
 #     return leave
 
 
-async def add_device_token(session: AsyncSession, user_id, device_token: str):
-    """
-    Add FCM token to Users.device_tokens ARRAY.
-    Avoid duplicates.
-    """
+# async def add_device_token(session: AsyncSession, user_id, device_token: str):
+#     """
+#     Add FCM token to Users.device_tokens ARRAY.
+#     Avoid duplicates.
+#     """
 
-    # 1) Fetch user
-    user = await session.get(Users, user_id)
-    if not user:
-        raise HTTPException(404, "User not found")
+#     # 1) Fetch user
+#     user = await session.get(Users, user_id)
+#     if not user:
+#         raise HTTPException(404, "User not found")
 
-    # 2) If token not present -> add it
-    if device_token not in user.device_tokens:
-        user.device_tokens.append(device_token)
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
+#     # 2) If token not present -> add it
+#     if device_token not in user.device_tokens:
+#         user.device_tokens.append(device_token)
+#         session.add(user)
+#         await session.commit()
+#         await session.refresh(user)
 
-    return user.device_tokens
+#     return user.device_tokens
 
 
 # async def get_leave_balance(session: AsyncSession, user_id) -> List[dict]:
@@ -421,106 +421,106 @@ async def add_device_token(session: AsyncSession, user_id, device_token: str):
 #     ]
 
 
-# In production, replace with DB storage
-USER_TOKEN_STORE = {}  # {google_user_id: {tokens}}
+# # In production, replace with DB storage
+# USER_TOKEN_STORE = {}  # {google_user_id: {tokens}}
 
 
-async def send_email_service(req: SendMailRequest):
-    record = USER_TOKEN_STORE.get(req.user_id)
-    if not record:
-        raise HTTPException(404, "User not logged in with Google OAuth")
+# async def send_email_service(req: SendMailRequest):
+#     record = USER_TOKEN_STORE.get(req.user_id)
+#     if not record:
+#         raise HTTPException(404, "User not logged in with Google OAuth")
 
-    access_token = record["access_token"]
-    refresh_token = record.get("refresh_token")
+#     access_token = record["access_token"]
+#     refresh_token = record.get("refresh_token")
 
-    if not access_token and refresh_token:
-        new_tokens = await refresh_access_token(refresh_token)
-        access_token = new_tokens["access_token"]
-        record["access_token"] = access_token
+#     if not access_token and refresh_token:
+#         new_tokens = await refresh_access_token(refresh_token)
+#         access_token = new_tokens["access_token"]
+#         record["access_token"] = access_token
 
-    if not access_token:
-        raise HTTPException(400, "Re-auth required")
+#     if not access_token:
+#         raise HTTPException(400, "Re-auth required")
 
-    raw = build_raw_message(
-        to_email=req.to,
-        subject=req.subject,
-        body=req.body,
-        from_name=req.from_name,
-        from_email=record["email"],
-    )
+#     raw = build_raw_message(
+#         to_email=req.to,
+#         subject=req.subject,
+#         body=req.body,
+#         from_name=req.from_name,
+#         from_email=record["email"],
+#     )
 
-    url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
-    payload = {"raw": raw}
+#     url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+#     payload = {"raw": raw}
 
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            url, json=payload, headers={"Authorization": f"Bearer {access_token}"}
-        )
+#     async with httpx.AsyncClient() as client:
+#         r = await client.post(
+#             url, json=payload, headers={"Authorization": f"Bearer {access_token}"}
+#         )
 
-    if r.status_code >= 400:
-        raise HTTPException(500, f"Gmail error: {r.text}")
+#     if r.status_code >= 400:
+#         raise HTTPException(500, f"Gmail error: {r.text}")
 
-    return r.json()
-
-
-async def update_user_profile(session, user_id: str, data):
-    user = await session.get(Users, uuid.UUID(user_id))
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # --- Update Name ---
-    if data.name:
-        user.user_name = data.name
-
-    # --- Update Email ---
-    if data.email:
-        user.email_id = data.email
-
-    # --- Update DOB ---
-    if data.dob:
-        try:
-            # Convert DD.MM.YYYY → Python date
-            parsed_date = datetime.strptime(data.dob, "%d.%m.%Y").date()
-            user.dob = parsed_date
-        except:
-            raise HTTPException(
-                status_code=400, detail="DOB must be in DD.MM.YYYY format"
-            )
-
-    # --- Update Address ---
-    if data.address:
-        user.address = data.address
-
-    # --- Change Password ---
-    if data.new_password:
-        if not data.current_password:
-            raise HTTPException(status_code=400, detail="Current password required")
-
-        # Verify old password
-        if not pwd_context.verify(data.current_password, user.password):
-            raise HTTPException(status_code=400, detail="Incorrect current password")
-
-        # Set new password
-        user.password = pwd_context.hash(data.new_password)
-
-    # Commit changes
-    await session.commit()
-    await session.refresh(user)
-
-    return {
-        "message": "Profile updated successfully",
-        "user": {
-            "id": str(user.id),
-            "name": user.user_name,
-            "email": user.email_id,
-            "dob": user.dob.isoformat() if user.dob else None,
-            "address": user.address,
-            "is_verified": user.is_verified,
-        },
-    }
+#     return r.json()
 
 
-async def list_user_assets(session: AsyncSession, user_id: str) -> List[Assets]:
-    q = await session.exec(select(Assets).where(Assets.user_id == uuid.UUID(user_id)))
-    return q.all()
+# async def update_user_profile(session, user_id: str, data):
+#     user = await session.get(Users, uuid.UUID(user_id))
+
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
+
+#     # --- Update Name ---
+#     if data.name:
+#         user.user_name = data.name
+
+#     # --- Update Email ---
+#     if data.email:
+#         user.email_id = data.email
+
+#     # --- Update DOB ---
+#     if data.dob:
+#         try:
+#             # Convert DD.MM.YYYY → Python date
+#             parsed_date = datetime.strptime(data.dob, "%d.%m.%Y").date()
+#             user.dob = parsed_date
+#         except:
+#             raise HTTPException(
+#                 status_code=400, detail="DOB must be in DD.MM.YYYY format"
+#             )
+
+#     # --- Update Address ---
+#     if data.address:
+#         user.address = data.address
+
+#     # --- Change Password ---
+#     if data.new_password:
+#         if not data.current_password:
+#             raise HTTPException(status_code=400, detail="Current password required")
+
+#         # Verify old password
+#         if not pwd_context.verify(data.current_password, user.password):
+#             raise HTTPException(status_code=400, detail="Incorrect current password")
+
+#         # Set new password
+#         user.password = pwd_context.hash(data.new_password)
+
+#     # Commit changes
+#     await session.commit()
+#     await session.refresh(user)
+
+#     return {
+#         "message": "Profile updated successfully",
+#         "user": {
+#             "id": str(user.id),
+#             "name": user.user_name,
+#             "email": user.email_id,
+#             "dob": user.dob.isoformat() if user.dob else None,
+#             "address": user.address,
+#             "is_verified": user.is_verified,
+#         },
+#     }
+
+
+# async def list_user_assets(session: AsyncSession, user_id: str) -> List[Assets]:
+#     q = await session.exec(select(Assets).where(Assets.user_id == uuid.UUID(user_id)))
+#     return q.all()
