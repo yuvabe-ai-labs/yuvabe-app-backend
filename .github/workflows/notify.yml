@@ -2,25 +2,43 @@ name: Daily Emotion Check-In Notifications
 
 on:
   schedule:
-    - cron: "30 3 * * *"
-    - cron: "15 11 * * *"
+    - cron: "30 3 * * *"   # 9 AM IST
+    - cron: "15 11 * * *"  # 4:45 PM IST
   workflow_dispatch: {}
 
 jobs:
-  notify:
+  morning_notify:
+    if: github.event.schedule == '30 3 * * *'
     runs-on: ubuntu-latest
-
     steps:
-      - name: Call notify-all endpoint
+      - name: Send morning notification
         run: |
-          curl -X POST "http://192.168.0.108:8080/home/notify/all" \
+          curl -X POST "https://yuvabe-ai-yuvabe-app-backend.hf.space/home/notify/all" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -d '{
-              "title": "Jimbal Kae Sambar",
-              "body": "Chitu'\''s Sunday party",
+              "title": "Good Morning!",
+              "body": "How are you feeling today?",
               "data": {
                 "type": "home_alert",
-                "message": "Chitu invited you to Sunday party!"
+                "message": "Good morning! Would you like to share how you feel today?"
+              }
+            }'
+
+  evening_notify:
+    if: github.event.schedule == '15 11 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send evening notification
+        run: |
+          curl -X POST "https://yuvabe-ai-yuvabe-app-backend.hf.space/home/notify/all" \
+            -H "accept: application/json" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "title": "Good Evening!",
+              "body": "Take a moment to reflect on your day.",
+              "data": {
+                "type": "home_alert",
+                "message": "Evening check-in — How was your day?"
               }
             }'
