@@ -4,7 +4,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.core.models import EmotionLogs, Users
-
+from src.profile.models import UserDevices
+from src.notifications.fcm import send_fcm
 from .schemas import EmotionLogCreate, EmotionLogResponse, HomeResponseData
 
 PHILOSOPHY_TEXT = "Your mind is your greatest asset — train it daily."
@@ -97,3 +98,18 @@ async def get_emotions(user_id: str, session: AsyncSession):
         )
         for log in logs
     ]
+
+async def get_all_device_tokens(session):
+    stmt = select(UserDevices.device_token)
+    rows = (await session.execute(stmt)).all()
+    return [r[0] for r in rows]
+
+
+async def send_broadcast_notification(session, title, body, data=None):
+    tokens = await get_all_device_tokens(session)
+
+    if not tokens:
+        return {"sent": 0}
+
+    await send_fcm(tokens, title, body, data)
+    return {"sent": len(tokens)}
