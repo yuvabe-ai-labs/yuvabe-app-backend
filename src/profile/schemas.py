@@ -1,3 +1,4 @@
+from sqlalchemy.event.api import CANCEL
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 import uuid
@@ -16,6 +17,7 @@ class LeaveStatus(str, Enum):
     APPROVED = "Approved"
     REJECTED = "Rejected"
     PENDING = "Pending"
+    CANCELLED = "Cancelled"
 
 
 class CreateLeaveRequest(BaseModel):
