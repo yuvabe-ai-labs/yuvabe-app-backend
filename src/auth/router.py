@@ -11,7 +11,8 @@ from src.auth.service import (
     login_user,
 )
 from src.auth.utils import get_current_user
-from src.core.models import Users
+from src.core.models import Users, Roles, UserTeamsRole
+from sqlmodel import select
 from src.core.config import settings
 from fastapi.responses import RedirectResponse
 from .schemas import SignUpRequest, LoginRequest, BaseResponse, SendVerificationRequest
@@ -63,6 +64,21 @@ async def login(
     payload: LoginRequest, session: AsyncSession = Depends(get_async_session)
 ):
     response = await login_user(session, payload.email, payload.password)
+
+    user_id = response["user"]["id"]
+
+    # 🔥 Fetch User Role
+    result = await session.exec(
+        select(Roles)
+        .join(UserTeamsRole, UserTeamsRole.role_id == Roles.id)
+        .where(UserTeamsRole.user_id == uuid.UUID(user_id))
+    )
+
+    role_obj = result.first()
+    role_name = role_obj.name if role_obj else "Member"
+
+    response["user"]["role"] = (role_name or "member").lower()
+
     return {"code": 200, "data": response}
 
 
@@ -104,6 +120,13 @@ async def get_home(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    role_join = await session.exec(
+        select(Roles.name)
+        .join(UserTeamsRole, UserTeamsRole.role_id == Roles.id)
+        .where(UserTeamsRole.user_id == uuid.UUID(user_id))
+    )
+    user_role = role_join.first() or "Member"
+
     # Example payload — replace with your real app data
     return {
         "code": 200,
@@ -115,7 +138,8 @@ async def get_home(
                 "email": user.email_id,
                 "is_verified": user.is_verified,
                 "dob": user.dob.isoformat() if user.dob else None,
-                "profile_picture": user.profile_picture
+                "profile_picture": user.profile_picture,
+                "role": user_role.lower(),
             },
             "home_data": {
                 "announcements": ["Welcome!", "New protocol released"],
