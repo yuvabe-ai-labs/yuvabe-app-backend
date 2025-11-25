@@ -31,6 +31,27 @@ class ApproveRejectRequest(BaseModel):
     comment: Optional[str] = None  # optional for approve, required for reject
 
 
+class LeaveDetail(BaseModel):
+    id: str
+    user_id: str
+    user_name: str  # 👈 NEW FIELD
+    mentor_id: Optional[str]
+    lead_id: Optional[str]
+    leave_type: str
+    from_date: str
+    to_date: str
+    days: int
+    reason: str
+    status: str
+    reject_reason: Optional[str]
+    updated_at: Optional[str]
+
+
+class LeaveDetailResponse(BaseModel):
+    code: int
+    data: LeaveDetail
+
+
 class LeaveResponse(BaseModel):
     id: str
     leave_type: LeaveType
@@ -41,6 +62,8 @@ class LeaveResponse(BaseModel):
     status: LeaveStatus
     mentor_id: str
     lead_id: str
+    user_name: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class DeviceTokenIn(BaseModel):
