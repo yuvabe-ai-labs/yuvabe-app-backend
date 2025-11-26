@@ -24,3 +24,8 @@ class HomeResponseData(BaseModel):
     user_name: str
     philosophy_text: str
     recent_emotions: List[EmotionLogResponse]
+
+class BroadcastNotificationRequest(BaseModel):
+    title: str
+    body: str
+    data: dict | None = None
