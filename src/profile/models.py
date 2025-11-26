@@ -7,19 +7,16 @@ from typing import List, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
-
 class LeaveType(str, Enum):
     SICK = "Sick"
     CASUAL = "Casual"
     EMERGENCY = "Emergency"
-
 
 class LeaveStatus(str, Enum):
     APPROVED = "Approved"
     REJECTED = "Rejected"
     CANCELLED = "Cancelled"
     PENDING = "Pending"
-
 
 class Leave(SQLModel, table=True):
     __tablename__ = "leave"
@@ -33,12 +30,11 @@ class Leave(SQLModel, table=True):
     days: Optional[int] = 1
     reason: str = Field(nullable=True)
     status: LeaveStatus = Field(default=LeaveStatus.PENDING)
-    is_delivered: bool = Field(default=False)
+    is_delivered: bool = Field(default= False)
     is_read: bool = Field(default=False)
     requested_at: date = Field(default_factory=date.today)
     updated_at: date = Field(default_factory=date.today)
     reject_reason: Optional[str] = None
-
 
 class UserDevices(SQLModel, table=True):
     __tablename__ = "user_devices"
