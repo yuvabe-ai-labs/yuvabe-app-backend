@@ -59,32 +59,32 @@ async def _get_team_roles(session: AsyncSession, user_id: uuid.UUID):
         raise ValueError("Team Lead role not found")
 
     # 4) Find mentor in same team
-    mentor_user = (
+    mentor_users = (
         await session.exec(
             select(Users)
             .join(UserTeamsRole, UserTeamsRole.user_id == Users.id)
             .where(UserTeamsRole.team_id == user_team.team_id)
             .where(UserTeamsRole.role_id == mentor_role.id)
         )
-    ).first()
+    ).all()
 
-    if not mentor_user:
+    if not mentor_users:
         raise ValueError("Mentor not found in user's team")
 
     # 5) Find team lead in same team
-    lead_user = (
+    lead_users = (
         await session.exec(
             select(Users)
             .join(UserTeamsRole, UserTeamsRole.user_id == Users.id)
             .where(UserTeamsRole.team_id == user_team.team_id)
             .where(UserTeamsRole.role_id == lead_role.id)
         )
-    ).first()
+    ).all()
 
-    if not lead_user:
+    if not lead_users:
         raise ValueError("Team Lead not found in user's team")
 
-    return mentor_user, lead_user
+    return mentor_users, lead_users
 
 
 async def _get_tokens_for_users(
@@ -109,7 +109,7 @@ async def create_leave(session, user_id, body):
     user = await session.get(Users, user_id)
 
     # Get mentor + team lead
-    mentor_user, lead_user = await _get_team_roles(session, user_id)
+    mentor_users, lead_users = await _get_team_roles(session, user_id)
 
     leave = Leave(
         user_id=user_id,
@@ -118,8 +118,8 @@ async def create_leave(session, user_id, body):
         to_date=body.to_date,
         reason=body.reason,
         days=body.days,
-        mentor_id=mentor_user.id,
-        lead_id=lead_user.id,
+        mentor_id=mentor_users[0].id,
+        lead_id=lead_users[0].id,
     )
 
     session.add(leave)
@@ -131,8 +131,8 @@ async def create_leave(session, user_id, body):
         session,
         user,
         leave,
-        leave.mentor_id,
-        leave.lead_id,
+        mentor_ids=[m.id for m in mentor_users],
+        lead_ids=[l.id for l in lead_users],
     )
 
     return leave
@@ -157,19 +157,19 @@ async def mentor_decide_leave(session, mentor_id, leave_id, body):
     await session.commit()
     await session.refresh(leave)
 
-    # 🔥 Send notification to USER
+    # ----- Load ALL mentors + ALL leads (again) -----
+    from src.profile.service import _get_team_roles
+
+    mentor_users, lead_users = await _get_team_roles(session, leave.user_id)
+
+    # ----- Send notification to USER + ALL LEADS -----
     from src.profile.notify import send_leave_status_notification
 
-    await send_leave_status_notification(session, leave, mentor.user_name)
-
-    # 🔥 Send notification to TEAM LEAD also
-    tokens = await get_user_device_tokens(session, leave.lead_id)
-
-    await send_fcm(
-        tokens,
-        "Leave Update",
-        f"{leave.user_id} leave was {body.status.lower()}",
-        {"type": "leave_status"},
+    await send_leave_status_notification(
+        session,
+        leave,
+        mentor.user_name,
+        lead_ids=[l.id for l in lead_users],
     )
 
     return leave

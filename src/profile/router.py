@@ -1,3 +1,6 @@
+from uuid import UUID
+from src.core.models import Assets
+from src.profile.schemas import AssetResponse
 from src.profile.schemas import LeaveDetailResponse
 from src.core.database import get_async_session
 from src.auth.utils import get_current_user
@@ -24,6 +27,8 @@ from src.profile.schemas import (
     LeaveResponse,
     ApproveRejectRequest,
 )
+from sqlalchemy import desc
+
 from datetime import datetime
 from src.profile.service import create_leave, mentor_decide_leave
 
@@ -258,15 +263,37 @@ async def mentor_pending_leaves(
     session: AsyncSession = Depends(get_async_session),
     mentor_id: str = Depends(get_current_user),
 ):
+    mentor_uuid = uuid.UUID(mentor_id)
+
     print("🔥 mentor pending called for:", mentor_id)
+
+    mentor_team = (
+        await session.exec(
+            select(UserTeamsRole).where(UserTeamsRole.user_id == mentor_uuid)
+        )
+    ).first()
+
+    if not mentor_team:
+        raise HTTPException(404, "Mentor has no team")
+
+    team_users = (
+        await session.exec(
+            select(UserTeamsRole.user_id).where(
+                UserTeamsRole.team_id == mentor_team.team_id
+            )
+        )
+    ).all()
+
+    team_user_ids = [u for u in team_users]
 
     stmt = (
         select(Leave, Users.user_name)
         .join(Users, Users.id == Leave.user_id)
         .where(
-            Leave.mentor_id == uuid.UUID(mentor_id),
+            Leave.user_id.in_(team_user_ids),  # ⭐ FIXED
             Leave.status == LeaveStatus.PENDING,
         )
+        .order_by(desc(Leave.updated_at))  # ⭐ FIXED
     )
 
     rows = (await session.exec(stmt)).all()
@@ -290,18 +317,11 @@ async def mentor_pending_leaves(
                 mentor_id=str(leave.mentor_id),
                 lead_id=str(leave.lead_id),
                 user_name=user_name,
-                updated_at=(
-                    leave.updated_at.isoformat()
-                    if hasattr(leave, "updated_at") and leave.updated_at
-                    else None
-                ),
+                updated_at=(leave.updated_at.isoformat() if leave.updated_at else None),
             )
         )
 
-    return {
-        "code": 200,
-        "data": result,
-    }
+    return {"code": 200, "data": result}
 
 
 @router.get("/my-leaves")
@@ -552,3 +572,42 @@ async def cancel_leave(
             "status": leave.status,
         },
     }
+
+
+@router.get("/assets", response_model=BaseResponse)
+async def get_profile(
+    session: AsyncSession = Depends(get_async_session),
+    user_id: str = Depends(get_current_user),
+):
+    # Fetch User
+    result = await session.exec(select(Users).where(Users.id == UUID(user_id)))
+    user = result.first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Fetch Assets for logged-in user
+    assets_result = await session.exec(select(Assets).where(Assets.user_id == user.id))
+    assets = assets_result.all()
+
+    # Convert SQL rows → Pydantic
+    assets_dto = [
+        AssetResponse(
+            id=a.id,
+            user_id=a.user_id,
+            name=a.name,
+            type=a.type,
+            status=a.status,
+        )
+        for a in assets
+    ]
+
+    return BaseResponse(
+        code=200,
+        data={
+            "user_id": str(user.id),
+            "email": user.email_id,
+            "name": user.user_name,
+            "assets": assets_dto,
+        },
+    )
