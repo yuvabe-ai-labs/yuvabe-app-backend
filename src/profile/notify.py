@@ -2,21 +2,40 @@ from src.notifications.service import get_user_device_tokens
 from src.notifications.fcm import send_fcm
 
 
+def ensure_list(value):
+    """
+    Makes sure the value is always a list.
+    - If it's already a list/tuple/set -> convert to list and return
+    - If it's None -> return empty list
+    - Otherwise -> wrap single value in a list
+    """
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return list(value)
+    return [value]
+
 # -------------------------------
 # SEND TO MENTOR + LEAD
 # -------------------------------
-async def send_leave_request_notification(session, user, leave, mentor_id, lead_id):
-    title = "New Leave Request"
-    body = f"{user.user_name} requested leave"
+async def send_leave_request_notification(session, user, leave, mentor_ids, lead_ids):
+    mentor_ids = ensure_list(mentor_ids)
+    lead_ids = ensure_list(lead_ids)
 
     tokens = []
-    tokens += await get_user_device_tokens(session, mentor_id)
-    tokens += await get_user_device_tokens(session, lead_id)
+
+    for mentor_id in mentor_ids:
+        tokens += await get_user_device_tokens(session, mentor_id)
+
+    for lead_id in lead_ids:
+        tokens += await get_user_device_tokens(session, lead_id)
+
+    tokens = list(set(tokens))
 
     await send_fcm(
         tokens,
-        title,
-        body,
+        "New Leave Request",
+        f"{user.user_name} requested leave",
         {
             "type": "leave_request",
             "screen": "MentorApproval",
@@ -28,14 +47,23 @@ async def send_leave_request_notification(session, user, leave, mentor_id, lead_
 # -------------------------------
 # SEND TO USER + TEAM LEAD
 # -------------------------------
-async def send_leave_status_notification(session, leave, mentor_name):
+async def send_leave_status_notification(session, leave, mentor_name, lead_ids):
     title = f"Leave {leave.status}"
     body = f"Your leave was {leave.status.lower()} by {mentor_name}"
 
     # Send to USER
-    tokens = await get_user_device_tokens(session, leave.user_id)
+    user_tokens = await get_user_device_tokens(session, leave.user_id)
+
+    # Send to TEAM LEADS
+    lead_tokens = []
+    for lead_id in lead_ids:
+        lead_tokens += await get_user_device_tokens(session, lead_id)
+
+    lead_tokens = list(set(lead_tokens))
+
+    # 1) Notify user
     await send_fcm(
-        tokens,
+        user_tokens,
         title,
         body,
         {
@@ -45,10 +73,9 @@ async def send_leave_status_notification(session, leave, mentor_name):
         },
     )
 
-    # Send to TEAM LEAD
-    tokens = await get_user_device_tokens(session, leave.lead_id)
+    # 2) Notify all leads
     await send_fcm(
-        tokens,
+        lead_tokens,
         title,
         f"Leave {leave.status} for user {leave.user_id}",
         {
