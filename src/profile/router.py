@@ -290,10 +290,10 @@ async def mentor_pending_leaves(
         select(Leave, Users.user_name)
         .join(Users, Users.id == Leave.user_id)
         .where(
-            Leave.user_id.in_(team_user_ids),  # ⭐ FIXED
+            Leave.user_id.in_(team_user_ids),
             Leave.status == LeaveStatus.PENDING,
         )
-        .order_by(desc(Leave.updated_at))  # ⭐ FIXED
+        .order_by(desc(Leave.updated_at))
     )
 
     rows = (await session.exec(stmt)).all()
