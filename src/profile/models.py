@@ -5,7 +5,8 @@ from datetime import date, datetime
 from enum import Enum
 from typing import List, Optional
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.dialects.postgresql import UUID
+from sqlmodel import Field, Relationship, SQLModel, ForeignKey
 
 class LeaveType(str, Enum):
     SICK = "Sick"
@@ -21,9 +22,24 @@ class LeaveStatus(str, Enum):
 class Leave(SQLModel, table=True):
     __tablename__ = "leave"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
-    mentor_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
-    lead_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
+    user_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False
+        )
+    )
+    mentor_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True
+        )
+    )
+    lead_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True
+        )
+    )
     leave_type: LeaveType = Field(default=LeaveType.SICK)
     from_date: date = Field(nullable=False)
     to_date: date = Field(nullable=False)
@@ -39,7 +55,12 @@ class Leave(SQLModel, table=True):
 class UserDevices(SQLModel, table=True):
     __tablename__ = "user_devices"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
+    user_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False
+        )
+    )
     device_token: str
     last_seen: datetime = Field(default_factory=datetime.now)
     device_model: str
