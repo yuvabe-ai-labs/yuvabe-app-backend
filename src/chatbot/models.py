@@ -4,7 +4,9 @@ from typing import List
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, ForeignKey
+
+from sqlalchemy.dialects.postgresql import UUID
 
 
 class KnowledgeBase(SQLModel, table=True):
@@ -21,7 +23,12 @@ class KnowledgeBase(SQLModel, table=True):
 class KnowledgeChunk(SQLModel, table=True):
     __tablename__ = "knowledge_chunk"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    kb_id: uuid.UUID = Field(foreign_key="knowledge_base.id", nullable=False)
+    kb_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("knowledge_base.id", ondelete="CASCADE"),
+            nullable=False
+        )
+    )
     chunk_index: int
     chunk_text: str
     embedding: List[float] = Field(sa_column=Column(Vector(768)))

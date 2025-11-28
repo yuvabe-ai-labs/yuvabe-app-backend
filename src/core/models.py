@@ -6,7 +6,8 @@ from enum import Enum
 from typing import List, Optional
 
 
-from sqlalchemy import CheckConstraint, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import CheckConstraint, UniqueConstraint, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -48,15 +49,34 @@ class Roles(SQLModel, table=True):
 class UserTeamsRole(SQLModel, table=True):
     __tablename__ = "user_teams_role"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
-    team_id: uuid.UUID = Field(foreign_key="teams.id", nullable=False)
-    role_id: uuid.UUID = Field(foreign_key="roles.id", nullable=False)
-
+    user_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False
+        )
+    )
+    team_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("teams.id", ondelete="CASCADE"),
+            nullable=False
+        )
+    )
+    role_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("roles.id", ondelete="CASCADE"),
+            nullable=False
+        )
+    )
 
 class Assets(SQLModel, table=True):
     __tablename__ = "assets"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
+    user_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False
+        )
+    )
     name: str = Field(nullable=False)
     type: str = Field(nullable=False)
     status: AssetStatus = Field(default=AssetStatus.UNAVAILABLE)
@@ -71,7 +91,12 @@ class EmotionLogs(SQLModel, table=True):
         CheckConstraint("evening_emotion BETWEEN 1 AND 7 or evening_emotion IS NULL"),
     )
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
+    user_id: uuid.UUID = Field(
+        sa_column=Column(UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False
+        )
+    )
     morning_emotion: Optional[int] = Field(default=None, ge=1, le=7)
     evening_emotion: Optional[int] = Field(default=None, ge=1, le=7)
     log_date: date = Field(default_factory=date.today)
