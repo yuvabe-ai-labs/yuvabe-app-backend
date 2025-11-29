@@ -8,4 +8,4 @@ pinned: false
 short_description: Yuvabe App Backend
 ---
 
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+Check out our deployment at : https://huggingface.co/spaces/yuvabe-ai/yuvabe-app-backend
