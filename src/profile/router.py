@@ -1,3 +1,4 @@
+from src.profile.schemas import UpdateProfileRequest
 from uuid import UUID
 from src.core.models import Assets
 from src.profile.schemas import AssetResponse
@@ -609,5 +610,74 @@ async def get_profile(
             "email": user.email_id,
             "name": user.user_name,
             "assets": assets_dto,
+        },
+    )
+
+
+@router.put("/update-profile", response_model=BaseResponse)
+async def update_profile(
+    body: UpdateProfileRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user_id: str = Depends(get_current_user),
+):
+    # Get logged-in user
+    user = await session.get(Users, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # --- Update basic profile fields ---
+    if body.name is not None:
+        user.user_name = body.name
+
+    if body.email is not None:
+        user.email_id = body.email
+
+    if body.dob is not None:
+        dob_str = body.dob.replace(".", "-")  # convert dots to dashes
+        try:
+            user.dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="DOB must be YYYY-MM-DD or YYYY.MM.DD"
+            )
+
+    if body.address is not None:
+        user.address = body.address  # ensure DB has this column
+
+    # --- Handle password update ---
+    if body.current_password and body.new_password:
+        # Check current password matches
+        from src.auth.utils import verify_password, hash_password
+
+        if not verify_password(body.current_password, user.password):
+            raise HTTPException(
+                status_code=400,
+                detail="Current password is incorrect",
+            )
+
+        # update password
+        user.password = hash_password(body.new_password)
+
+    elif body.new_password and not body.current_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is required to set new password",
+        )
+
+    # Save
+    await session.commit()
+    await session.refresh(user)
+
+    # Response matches frontend expectation
+    return BaseResponse(
+        code=200,
+        data={
+            "user": {
+                "id": str(user.id),
+                "name": user.user_name,
+                "email": user.email_id,
+                "dob": getattr(user, "dob", None),
+                "address": getattr(user, "address", None),
+            }
         },
     )
