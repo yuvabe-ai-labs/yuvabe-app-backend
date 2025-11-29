@@ -4,3 +4,4 @@ from src.core import models as core_models
 from src.feed import models as feed_models
 from src.home import models as home_models
 from src.profile import models as profile_models
+from src.wellbeing import models as wellbeing_models
