@@ -1,4 +1,6 @@
+from src.profile.models import UserDevices
 from src.profile.models import Leave
+from sqlmodel import select
 from requests.api import delete
 from src.notifications.schemas import RegisterDeviceRequest
 from src.notifications.service import register_device
@@ -44,6 +46,27 @@ async def mark_notification_read(
     return {"message": "Marked as read"}
 
 
+@router.post("/logout")
+async def logout(
+    body: RegisterDeviceRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user_id: str = Depends(get_current_user),
+):
+    stmt = select(UserDevices).where(
+        UserDevices.user_id == user_id, UserDevices.device_token == body.device_token
+    )
+    result = await session.execute(stmt)
+    device = result.scalar_one_or_none()
+
+    if not device:
+        return {"message": "Device already removed"}
+
+    await session.delete(device)
+    await session.commit()
+
+    return {"message": "Logged out — device token removed"}
+
+
 @router.post("/mark-all-read")
 async def mark_all_read(
     session: AsyncSession = Depends(get_async_session),
@@ -62,3 +85,5 @@ async def mark_all_read(
     await session.commit()
 
     return {"message": "All notifications cleared"}
+
+
