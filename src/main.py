@@ -1,3 +1,4 @@
+from src.wellbeing.router import router as wellbeing
 from fastapi import FastAPI
 
 import os
@@ -12,10 +13,12 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Yuvabe App API")
 
+
 @app.on_event("startup")
 async def on_startup():
     await init_db()
-    
+
+
 app.include_router(home_router, prefix="/home", tags=["Home"])
 
 # init_db()
@@ -25,6 +28,8 @@ app.include_router(profile)
 app.include_router(auth_router)
 
 app.include_router(chatbot_router)
+
+app.include_router(wellbeing)
 
 app.include_router(notifications_router)
 
