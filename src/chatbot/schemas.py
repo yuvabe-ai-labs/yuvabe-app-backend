@@ -33,6 +33,7 @@ class SemanticSearchResult(BaseModel):
     chunk_id: str
     kb_id: str
     text: str
+    image_url: str | None = None 
     score: float
 
 class ManualTextRequest(BaseModel):

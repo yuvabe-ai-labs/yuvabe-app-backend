@@ -57,7 +57,7 @@ async def semantic_search(
 
     sql = text(
         """
-        SELECT id, kb_id, chunk_text,
+        SELECT id, kb_id, chunk_text,image_url,
            embedding <#> :query_vec AS score
         FROM knowledge_chunk
         ORDER BY embedding <#> :query_vec ASC
@@ -75,6 +75,7 @@ async def semantic_search(
             chunk_id=str(r.id),
             kb_id=str(r.kb_id),
             text=r.chunk_text,
+            image_url=r.image_url,
             score=float(r.score),
         )
         for r in rows

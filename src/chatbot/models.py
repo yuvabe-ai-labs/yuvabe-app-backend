@@ -31,5 +31,6 @@ class KnowledgeChunk(SQLModel, table=True):
     )
     chunk_index: int
     chunk_text: str
+    image_url: str | None = Field(default=None)
     embedding: List[float] = Field(sa_column=Column(Vector(768)))
     knowledge_base: "KnowledgeBase" = Relationship(back_populates="knowledge_chunk")
