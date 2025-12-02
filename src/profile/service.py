@@ -1,6 +1,5 @@
 from src.notifications.service import get_user_device_tokens
 from src.profile.utils import build_raw_message, refresh_access_token
-from src.profile.schemas import SendMailRequest
 from src.core.models import Assets, Users, UserTeamsRole, Roles
 from fastapi import HTTPException
 from passlib.context import CryptContext
