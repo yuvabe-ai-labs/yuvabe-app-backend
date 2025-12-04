@@ -7,8 +7,9 @@ from typing import List, Optional
 
 
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import CheckConstraint, UniqueConstraint, ForeignKey, SAEnum
+from sqlalchemy import CheckConstraint, UniqueConstraint, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import Enum as SQLEnum
 
 
 class AssetStatus(str, Enum):
@@ -95,15 +96,15 @@ class Assets(SQLModel, table=True):
     name: str = Field(nullable=False)
     type: str = Field(nullable=False)
     status: AssetStatus = Field(default=AssetStatus.UNAVAILABLE)
-    user: "Users" = Relationship(back_populatealmosts="asset")
+    user: "Users" = Relationship(back_populates="asset")
 
 
 class EmotionLogs(SQLModel, table=True):
     __tablename__ = "emotion_logs"
-    __table_args__ = (
-        UniqueConstraint("user_id", "log_date"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "log_date"),)
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+
     user_id: uuid.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
@@ -111,12 +112,13 @@ class EmotionLogs(SQLModel, table=True):
             nullable=False,
         )
     )
+
     morning_emotion: Optional[Emotion] = Field(
-        default=None,
-        sa_column=Column(SAEnum(Emotion, native_enum=False), nullable=True)
-    )
+    sa_column=Column(SQLEnum(Emotion, name="emotion_enum", native_enum=True), nullable=True)
+)
     evening_emotion: Optional[Emotion] = Field(
-        default=None,
-        sa_column=Column(SAEnum(Emotion, native_enum=False), nullable=True)
-    )
+    sa_column=Column(SQLEnum(Emotion, name="emotion_enum", native_enum=True), nullable=True)
+)
+
     log_date: date = Field(default_factory=date.today)
+

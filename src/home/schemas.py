@@ -1,7 +1,7 @@
 from datetime import date
 from typing import List, Optional
 from pydantic import BaseModel
-from src.core.enums import Emotion
+from src.core.models import Emotion
 
 class EmotionLogCreate(BaseModel):
     user_id: str
