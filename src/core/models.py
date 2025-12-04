@@ -7,7 +7,7 @@ from typing import List, Optional
 
 
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import CheckConstraint, UniqueConstraint, ForeignKey
+from sqlalchemy import CheckConstraint, UniqueConstraint, ForeignKey, SAEnum
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -17,6 +17,14 @@ class AssetStatus(str, Enum):
     ON_REQUEST = "On Request"
     IN_SERVICE = "In Service"
 
+class Emotion(str, Enum):
+    JOYFUL = "joyful"
+    HAPPY = "happy"
+    CALM = "calm"
+    NEUTRAL = "neutral"
+    ANXIOUS = "anxious"
+    SAD = "sad"
+    FRUSTRATED = "frustrated"
 
 class Users(SQLModel, table=True):
     __tablename__ = "users"
@@ -81,23 +89,28 @@ class Assets(SQLModel, table=True):
     name: str = Field(nullable=False)
     type: str = Field(nullable=False)
     status: AssetStatus = Field(default=AssetStatus.UNAVAILABLE)
-    user: "Users" = Relationship(back_populates="asset")
+    user: "Users" = Relationship(back_populatealmosts="asset")
 
 
 class EmotionLogs(SQLModel, table=True):
     __tablename__ = "emotion_logs"
     __table_args__ = (
         UniqueConstraint("user_id", "log_date"),
-        CheckConstraint("morning_emotion BETWEEN 1 AND 7 or morning_emotion IS NULL"),
-        CheckConstraint("evening_emotion BETWEEN 1 AND 7 or evening_emotion IS NULL"),
     )
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False
         )
     )
-    morning_emotion: Optional[int] = Field(default=None, ge=1, le=7)
-    evening_emotion: Optional[int] = Field(default=None, ge=1, le=7)
+    morning_emotion: Optional[Emotion] = Field(
+        default=None,
+        sa_column=Column(SAEnum(Emotion, native_enum=False), nullable=True)
+    )
+    evening_emotion: Optional[Emotion] = Field(
+        default=None,
+        sa_column=Column(SAEnum(Emotion, native_enum=False), nullable=True)
+    )
     log_date: date = Field(default_factory=date.today)
