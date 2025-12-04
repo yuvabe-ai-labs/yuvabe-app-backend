@@ -38,6 +38,7 @@ class Users(SQLModel, table=True):
     dob: Optional[date] = None
     address: Optional[str] = None
     profile_picture: Optional[str] = None
+    join_date: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     asset: List["Assets"] = Relationship(back_populates="user")
     water_logs: List["WaterLogs"] = Relationship(back_populates="user")
@@ -59,31 +60,36 @@ class UserTeamsRole(SQLModel, table=True):
     __tablename__ = "user_teams_role"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
     team_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("teams.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
     role_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("roles.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
+
 
 class Assets(SQLModel, table=True):
     __tablename__ = "assets"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
     name: str = Field(nullable=False)
@@ -102,7 +108,7 @@ class EmotionLogs(SQLModel, table=True):
         sa_column=Column(
             UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
     morning_emotion: Optional[Emotion] = Field(

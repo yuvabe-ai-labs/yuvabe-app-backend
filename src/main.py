@@ -7,6 +7,7 @@ from src.chatbot.router import router as chatbot_router
 from src.core.database import init_db
 from src.home.router import router as home_router
 from src.notifications.router import router as notifications_router
+from src.payslip.router import router as payslip_router
 from src.profile.router import router as profile
 from fastapi.staticfiles import StaticFiles
 
@@ -32,6 +33,8 @@ app.include_router(chatbot_router)
 app.include_router(wellbeing)
 
 app.include_router(notifications_router)
+
+app.include_router(payslip_router)
 
 
 @app.get("/")
