@@ -36,7 +36,13 @@ def get_access_token():
     return credentials.token
 
 
-async def send_fcm(tokens: list[str], title: str, body: str, data: dict | None = None):
+async def send_fcm(
+    tokens: list[str],
+    title: str,
+    body: str,
+    data: dict | None = None,
+    priority: str = "high",
+):
     """Send push notifications using Firebase HTTP v1."""
     if not tokens:
         return
@@ -55,8 +61,10 @@ async def send_fcm(tokens: list[str], title: str, body: str, data: dict | None =
         message = {
             "message": {
                 "token": token,
-                "notification": {"title": title, "body": body},
-                "data": data or {},
+                "data": {"title": title, "body": body, **(data or {})},
+                "android": {
+                    "priority": priority,
+                },
             }
         }
 
