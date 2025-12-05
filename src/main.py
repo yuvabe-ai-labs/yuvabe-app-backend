@@ -9,6 +9,7 @@ from src.home.router import router as home_router
 from src.notifications.router import router as notifications_router
 from src.payslip.router import router as payslip_router
 from src.profile.router import router as profile
+from src.journaling.router import router as journal
 from fastapi.staticfiles import StaticFiles
 
 
@@ -35,6 +36,8 @@ app.include_router(wellbeing)
 app.include_router(notifications_router)
 
 app.include_router(payslip_router)
+
+app.include_router(journal)
 
 
 @app.get("/")

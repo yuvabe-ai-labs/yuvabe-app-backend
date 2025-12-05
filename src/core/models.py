@@ -43,6 +43,7 @@ class Users(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     asset: List["Assets"] = Relationship(back_populates="user")
     water_logs: List["WaterLogs"] = Relationship(back_populates="user")
+    journal_entries: List["JournalEntry"] = Relationship(back_populates="user")
 
 
 class Teams(SQLModel, table=True):
