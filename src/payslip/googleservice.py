@@ -1,68 +1,69 @@
+# src/payslip/googleservice.py
 import base64
 import json
 import requests
-from typing import Tuple
 from fastapi import HTTPException
-
 from src.core.config import settings
+
+# TEMPORARY in-memory store
+GOOGLE_TOKENS = {}  # user_id -> refresh_token
 
 
 def exchange_code_for_tokens(code: str):
-    """
-    Exchange Google 'code' for access_token + refresh_token
-    """
+    """Exchange authorization code for access + refresh tokens."""
     data = {
-        "code": code,
         "client_id": settings.GOOGLE_CLIENT_ID,
         "client_secret": settings.GOOGLE_CLIENT_SECRET,
-        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "code": code,
         "grant_type": "authorization_code",
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
     }
 
-    res = requests.post(settings.TOKEN_URL, data=data)
-    if res.status_code != 200:
-        raise HTTPException(500, f"Google token exchange error: {res.text}")
-
-    return res.json()
+    response = requests.post(settings.TOKEN_URL, data=data)
+    return response.json()
 
 
-def refresh_google_access_token(refresh_token: str) -> str:
-    """
-    Input → refresh_token  
-    Output → new access_token
-    """
+def extract_email_from_id_token(id_token: str) -> str:
+    """Decode ID token to extract the email Google selected."""
+    try:
+        payload_part = id_token.split(".")[1] + "==="
+        decoded = json.loads(base64.urlsafe_b64decode(payload_part))
+        return decoded.get("email")
+    except Exception:
+        raise HTTPException(400, "Invalid ID token format")
+
+
+def refresh_google_access_token(refresh_token: str):
+    """Refresh access token using refresh_token."""
     data = {
-        "refresh_token": refresh_token,
         "client_id": settings.GOOGLE_CLIENT_ID,
         "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "refresh_token": refresh_token,
         "grant_type": "refresh_token",
     }
 
-    res = requests.post(settings.TOKEN_URL, data=data)
-    if res.status_code != 200:
-        raise HTTPException(500, f"Failed to refresh access token: {res.text}")
+    response = requests.post(settings.TOKEN_URL, data=data)
+    token_data = response.json()
 
-    return res.json()["access_token"]
+    if "access_token" not in token_data:
+        raise HTTPException(400, f"Google refresh failed: {token_data}")
+
+    return token_data["access_token"]
 
 
-def build_email(from_email: str, to_email: str, subject: str, body: str) -> str:
-    """
-    Gmail API expects Base64URL-encoded email.
-    """
+def build_email(from_email: str, to_email: str, subject: str, body: str):
+    """Build raw Gmail MIME email."""
     message = (
         f"From: {from_email}\r\n"
         f"To: {to_email}\r\n"
-        f"Subject: {subject}\r\n"
-        "\r\n"
+        f"Subject: {subject}\r\n\r\n"
         f"{body}"
     )
-
-    message_bytes = message.encode("utf-8")
-    encoded = base64.urlsafe_b64encode(message_bytes).decode("utf-8")
-    return encoded
+    return base64.urlsafe_b64encode(message.encode("utf-8")).decode("utf-8")
 
 
-def send_gmail(access_token: str, raw_message: str) -> str:
+def send_gmail(access_token: str, raw_message: str):
+    """Send email through Gmail API."""
     url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 
     headers = {
@@ -70,11 +71,12 @@ def send_gmail(access_token: str, raw_message: str) -> str:
         "Content-Type": "application/json",
     }
 
-    payload = {"raw": raw_message}
+    data = {"raw": raw_message}
 
-    res = requests.post(url, headers=headers, data=json.dumps(payload))
+    res = requests.post(url, headers=headers, json=data)
+    data = res.json()
 
-    if res.status_code not in (200, 202):
-        raise HTTPException(500, f"Gmail API error: {res.text}")
+    if "id" not in data:
+        raise HTTPException(400, f"Gmail send error: {data}")
 
-    return res.json().get("id")  # message_id
+    return data["id"]
