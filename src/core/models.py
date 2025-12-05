@@ -9,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import CheckConstraint, UniqueConstraint, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import Enum as SQLEnum
 
 
 class AssetStatus(str, Enum):
@@ -17,6 +18,14 @@ class AssetStatus(str, Enum):
     ON_REQUEST = "On Request"
     IN_SERVICE = "In Service"
 
+class Emotion(str, Enum):
+    JOYFUL = "joyful"
+    HAPPY = "happy"
+    CALM = "calm"
+    NEUTRAL = "neutral"
+    ANXIOUS = "anxious"
+    SAD = "sad"
+    FRUSTRATED = "frustrated"
 
 class Users(SQLModel, table=True):
     __tablename__ = "users"
@@ -30,9 +39,11 @@ class Users(SQLModel, table=True):
     dob: Optional[date] = None
     address: Optional[str] = None
     profile_picture: Optional[str] = None
+    join_date: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     asset: List["Assets"] = Relationship(back_populates="user")
     water_logs: List["WaterLogs"] = Relationship(back_populates="user")
+    journal_entries: List["JournalEntry"] = Relationship(back_populates="user")
 
 
 class Teams(SQLModel, table=True):
@@ -51,31 +62,36 @@ class UserTeamsRole(SQLModel, table=True):
     __tablename__ = "user_teams_role"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
     team_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("teams.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
     role_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("roles.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
+
 
 class Assets(SQLModel, table=True):
     __tablename__ = "assets"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
     name: str = Field(nullable=False)
@@ -86,18 +102,24 @@ class Assets(SQLModel, table=True):
 
 class EmotionLogs(SQLModel, table=True):
     __tablename__ = "emotion_logs"
-    __table_args__ = (
-        UniqueConstraint("user_id", "log_date"),
-        CheckConstraint("morning_emotion BETWEEN 1 AND 7 or morning_emotion IS NULL"),
-        CheckConstraint("evening_emotion BETWEEN 1 AND 7 or evening_emotion IS NULL"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "log_date"),)
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True),
+        sa_column=Column(
+            UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
-            nullable=False
+            nullable=False,
         )
     )
-    morning_emotion: Optional[int] = Field(default=None, ge=1, le=7)
-    evening_emotion: Optional[int] = Field(default=None, ge=1, le=7)
+
+    morning_emotion: Optional[Emotion] = Field(
+    sa_column=Column(SQLEnum(Emotion, name="emotion_enum", native_enum=True), nullable=True)
+)
+    evening_emotion: Optional[Emotion] = Field(
+    sa_column=Column(SQLEnum(Emotion, name="emotion_enum", native_enum=True), nullable=True)
+)
+
     log_date: date = Field(default_factory=date.today)
+

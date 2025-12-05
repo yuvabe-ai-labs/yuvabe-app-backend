@@ -46,6 +46,7 @@ async def get_home_data(user_id: str, session: AsyncSession) -> HomeResponseData
 async def add_or_update_emotion(
     data: EmotionLogCreate, session: AsyncSession
 ) -> EmotionLogResponse:
+
     user_exists = await session.exec(select(Users).where(Users.id == data.user_id))
     if not user_exists.first():
         raise ValueError("User not found. Cannot add emotion log.")

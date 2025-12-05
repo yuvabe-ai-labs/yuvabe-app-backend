@@ -5,3 +5,5 @@ from src.feed import models as feed_models
 from src.home import models as home_models
 from src.profile import models as profile_models
 from src.wellbeing import models as wellbeing_models
+from src.payslip import models as payslip_models
+from src.journaling import models as journaling_models

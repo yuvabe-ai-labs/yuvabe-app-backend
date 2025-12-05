@@ -156,7 +156,7 @@ async def verify_verification_token(token: str) -> str:
 bearer_scheme = HTTPBearer()
 
 
-def get_current_user(
+def  get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ):
     """Decode JWT token and extract current user ID"""
@@ -169,7 +169,7 @@ def get_current_user(
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: missing user id",
+                detail="Invalid token: Missing user id",
             )
         return user_id
 
