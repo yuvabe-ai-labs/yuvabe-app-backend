@@ -2,11 +2,13 @@ import os
 import shutil
 import tempfile
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from src.auth.utils import get_current_user
 from src.core.database import get_async_session
 from .schemas import ManualTextRequest
 from .service import store_manual_text
@@ -23,7 +25,7 @@ from .service import process_pdf_and_store
 router = APIRouter(prefix="/chatbot", tags=["chatbot"])
 
 @router.post("/tokenize", response_model=TokenizeResponse)
-async def tokenize_text(payload: TokenizeRequest):
+async def tokenize_text(payload: TokenizeRequest,user_id: UUID = Depends(get_current_user)):
     try:
         encoded = embedding_model.tokenizer(
             payload.text,
@@ -44,7 +46,7 @@ async def tokenize_text(payload: TokenizeRequest):
 
 @router.post("/semantic-search", response_model=list[SemanticSearchResult])
 async def semantic_search(
-    payload: SemanticSearchRequest, session: AsyncSession = Depends(get_async_session)
+    payload: SemanticSearchRequest, session: AsyncSession = Depends(get_async_session), user_id: UUID = Depends(get_current_user)
 ):
 
     if len(payload.embedding) == 0:
