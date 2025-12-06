@@ -2,8 +2,8 @@ name: Daily Emotion Check-In Notifications
 
 on:
   schedule:
-    - cron: "30 3 * * *"   # 9 AM IST
-    - cron: "15 11 * * *"  # 4:45 PM IST
+    - cron: "30 3 * * *" # 9 AM IST
+    - cron: "15 11 * * *" # 4:45 PM IST
   workflow_dispatch: {}
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Send morning notification
         run: |
-          curl -X POST "https://yuvabe-ai-yuvabe-app-backend.hf.space/home/notify/all" \
+          curl -X POST "${{secrets.NOTIFY_URL}}" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -d '{
@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Send evening notification
         run: |
-          curl -X POST "https://yuvabe-ai-yuvabe-app-backend.hf.space/home/notify/all" \
+          curl -X POST "${{secrets.NOTIFY_URL}}" \
             -H "accept: application/json" \
             -H "Content-Type: application/json" \
             -d '{

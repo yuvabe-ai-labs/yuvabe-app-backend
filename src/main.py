@@ -10,6 +10,7 @@ from src.notifications.router import router as notifications_router
 from src.payslip.router import router as payslip_router
 from src.profile.router import router as profile
 from src.journaling.router import router as journal
+from src.core.router import router as app_config
 from fastapi.staticfiles import StaticFiles
 
 
@@ -23,7 +24,7 @@ async def on_startup():
 
 app.include_router(home_router, prefix="/home", tags=["Home"])
 
-# init_db()
+app.include_router(app_config)
 
 app.include_router(profile)
 

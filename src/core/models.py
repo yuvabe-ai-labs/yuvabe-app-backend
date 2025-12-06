@@ -26,6 +26,10 @@ class Emotion(str, Enum):
     ANXIOUS = "anxious"
     SAD = "sad"
     FRUSTRATED = "frustrated"
+    
+class AppVersion(SQLModel, table=True):
+    __tablename__ = "app_version"
+    version: str = Field(primary_key=True)
 
 class Users(SQLModel, table=True):
     __tablename__ = "users"

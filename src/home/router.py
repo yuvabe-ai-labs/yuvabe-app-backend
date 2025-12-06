@@ -26,7 +26,8 @@ async def fetch_home_data(
 
 @router.post("/emotion", response_model=BaseResponse[EmotionLogResponse])
 async def create_or_update_emotion(
-    data: EmotionLogCreate, session: AsyncSession = Depends(get_async_session)
+    data: EmotionLogCreate, session: AsyncSession = Depends(get_async_session),
+    user_id: str = Depends(get_current_user),
 ):
     record = await add_or_update_emotion(data, session)
     return {
