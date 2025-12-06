@@ -11,3 +11,4 @@ class BaseResponse(BaseModel, Generic[T]):
 
 class AppConfigResponse(SQLModel):
     version: str
+    apk_download_link: str
