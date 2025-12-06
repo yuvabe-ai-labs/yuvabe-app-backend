@@ -35,9 +35,10 @@ def _parse_month(month_str: str) -> date:
 
 def validate_join_date(join_date: Optional[str], period_start: date):
     if not join_date:
-        return
+        join = date(2020, 4, 1)
+    else:
+        join = datetime.strptime(join_date, "%Y-%m-%d").date()
 
-    join = datetime.strptime(join_date, "%Y-%m-%d").date()
     if period_start < join:
         raise HTTPException(
             400,
