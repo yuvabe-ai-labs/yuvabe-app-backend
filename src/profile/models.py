@@ -63,6 +63,4 @@ class UserDevices(SQLModel, table=True):
     )
     device_token: str
     last_seen: datetime = Field(default_factory=datetime.now)
-    device_model: str
-    platform: str
     updated_at: datetime = Field(default_factory=datetime.now)
