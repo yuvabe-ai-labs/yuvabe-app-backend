@@ -505,6 +505,7 @@ async def get_profile_details(
             "team_name": team.name,
             "mentor_name": ", ".join(mentor_names),
             "mentor_email": ", ".join(mentor_emails),
+            "join_date": user.join_date,
         },
     )
 

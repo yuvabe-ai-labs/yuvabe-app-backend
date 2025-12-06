@@ -39,39 +39,40 @@ async def gmail_connect_url(user_id: uuid.UUID):
     return {"auth_url": f"{settings.AUTH_BASE}?{urlencode(params)}"}
 
 
-@router.get("/gmail/callback", response_class=HTMLResponse)
+@router.get("/gmail/callback")
 async def gmail_callback(
-    code: str,
-    state: str,
-    session: AsyncSession = Depends(get_async_session),
+    code: str, state: str, session: AsyncSession = Depends(get_async_session)
 ):
-    """
-    Google redirects here with ?code & ?state=user_id.
-    We:
-      - exchange code for tokens
-      - verify the Google email matches our user's email
-      - store refresh_token into payslip_requests table
-    """
+    from fastapi.responses import RedirectResponse
+
     user_id = uuid.UUID(state)
     user = await session.get(Users, user_id)
 
     if not user:
-        raise HTTPException(400, "User not found for given state")
+        return RedirectResponse(
+            "yuvabe://gmail/callback?success=false&error=user_not_found&message=No such user exists"
+        )
 
-    token_data = exchange_code_for_tokens(code)
-    google_email = extract_email_from_id_token(token_data["id_token"])
+    try:
+        token_data = exchange_code_for_tokens(code)
+        google_email = extract_email_from_id_token(token_data["id_token"])
+    except Exception:
+        return RedirectResponse(
+            "yuvabe://gmail/callback?success=false&error=invalid_code&message=OAuth code exchange failed"
+        )
 
+    # --- GMAIL MISMATCH ERROR ---
     if google_email.lower() != user.email_id.lower():
-        raise HTTPException(
-            400,
-            f"Please select your registered email: {user.email_id}",
+        return RedirectResponse(
+            "yuvabe://gmail/callback?success=false&error=email_mismatch&message=Google account does not match registered email"
         )
 
     refresh_token = token_data.get("refresh_token")
     if not refresh_token:
-        raise HTTPException(400, "No refresh token received from Google")
+        return RedirectResponse(
+            "yuvabe://gmail/callback?success=false&error=no_refresh_token&message=No refresh token returned from Google"
+        )
 
-    # Check if this user already has any payslip row
     q = (
         select(PayslipRequest)
         .where(PayslipRequest.user_id == user_id)
@@ -80,29 +81,23 @@ async def gmail_callback(
     existing = (await session.execute(q)).scalar_one_or_none()
 
     if existing:
-        # Update the latest row with new refresh token
         existing.refresh_token = refresh_token
-        # Do NOT change requested_at or status here;
-        # this endpoint is only for (re)connecting Gmail.
         session.add(existing)
     else:
-        # First time ever connecting Gmail -> create a "connection row"
-        connection_row = PayslipRequest(
-            user_id=user_id,
-            refresh_token=refresh_token,
-            status=PayslipStatus.PENDING,  # not an actual request yet
-            # requested_at default is now; one_request_per_day ignores PENDING rows
+        session.add(
+            PayslipRequest(
+                user_id=user_id,
+                refresh_token=refresh_token,
+                status=PayslipStatus.PENDING,
+            )
         )
-        session.add(connection_row)
 
     await session.commit()
 
-    return """
-    <html><body>
-        <h1>Gmail Connected Successfully ✔</h1>
-        <p>You may now request your payslip.</p>
-    </body></html>
-    """
+    # --- SUCCESS MESSAGE ---
+    return RedirectResponse(
+        "yuvabe://gmail/callback?success=true&message=gmail_connected_successfully"
+    )
 
 
 @router.post("/request")
