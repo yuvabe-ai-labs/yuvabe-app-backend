@@ -15,6 +15,9 @@ from src.payslip.googleservice import (
     send_gmail,
 )
 
+from src.payslip.utils import decrypt_token
+from src.payslip.utils import encrypt_token
+
 
 async def user_team_name(session: AsyncSession, user_id):
     """Return user's team name."""
@@ -95,7 +98,7 @@ async def process_payslip_request(
     # 4. Get refresh_token from latest payslip row (DB)
     latest = await get_latest_payslip_row(session, user.id)
 
-    refresh_token = latest.refresh_token if latest else None
+    refresh_token = decrypt_token(latest.refresh_token) if latest else None
 
     if not refresh_token:
         # No token stored yet
@@ -134,7 +137,7 @@ async def process_payslip_request(
         latest.status = PayslipStatus.SENT
         latest.requested_at = now
         latest.error_message = None
-        latest.refresh_token = refresh_token  # keep token
+        latest.refresh_token = encrypt_token(refresh_token)  # keep token
         session.add(latest)
         await session.commit()
         await session.refresh(latest)

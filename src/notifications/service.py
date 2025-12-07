@@ -18,8 +18,6 @@ async def register_device(
     device = result.scalar_one_or_none()
 
     if device:
-        device.platform = body.platform
-        device.device_model = body.device_model
         device.last_seen = datetime.utcnow()
         device.updated_at = datetime.utcnow()
 
@@ -31,8 +29,6 @@ async def register_device(
     new_device = UserDevices(
         user_id=user_id,
         device_token=body.device_token,
-        platform=body.platform,
-        device_model=body.device_model,
     )
 
     session.add(new_device)
@@ -40,8 +36,10 @@ async def register_device(
     await session.refresh(new_device)
     return new_device
 
+
 from sqlalchemy import select
 from src.profile.models import UserDevices
+
 
 async def get_user_device_tokens(session, user_id):
     stmt = select(UserDevices.device_token).where(UserDevices.user_id == user_id)

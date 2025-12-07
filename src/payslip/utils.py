@@ -13,6 +13,23 @@ from src.core.database import get_async_session
 from src.core.models import Users
 from src.core.config import settings
 
+
+from cryptography.fernet import Fernet
+from src.core.config import settings
+
+
+fernet = Fernet(settings.FERNET_KEY.encode())
+
+
+def encrypt_token(token: str) -> str:
+    """Encrypts a refresh token before saving to DB."""
+    return fernet.encrypt(token.encode()).decode()
+
+
+def decrypt_token(token: str) -> str:
+    """Decrypts a stored refresh token when needed."""
+    return fernet.decrypt(token.encode()).decode()
+
 bearer_scheme = HTTPBearer()
 
 SECRET_KEY = settings.SECRET_KEY

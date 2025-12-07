@@ -18,6 +18,8 @@ from src.payslip.googleservice import (
 )
 from src.payslip.utils import get_current_user_model
 from src.payslip.models import PayslipRequest, PayslipStatus
+from src.payslip.utils import encrypt_token
+
 
 router = APIRouter(prefix="/payslips", tags=["Payslips & Gmail"])
 
@@ -81,13 +83,13 @@ async def gmail_callback(
     existing = (await session.execute(q)).scalar_one_or_none()
 
     if existing:
-        existing.refresh_token = refresh_token
+        existing.refresh_token = encrypt_token(refresh_token)
         session.add(existing)
     else:
         session.add(
             PayslipRequest(
                 user_id=user_id,
-                refresh_token=refresh_token,
+                refresh_token=encrypt_token(refresh_token),
                 status=PayslipStatus.PENDING,
             )
         )
