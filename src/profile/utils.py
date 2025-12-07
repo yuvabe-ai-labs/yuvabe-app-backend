@@ -12,17 +12,27 @@ from datetime import date
 from typing import Tuple, Optional, List
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from src.core.models import UserTeamsRole, Roles, Users, Teams  # adjust import path if differs
+from src.core.models import (
+    UserTeamsRole,
+    Roles,
+    Users,
+    Teams,
+)  # adjust import path if differs
 from src.core.config import settings  # for FCM key if needed
 import httpx
-import math
 
-def calculate_days(from_date: date, to_date: date, include_weekends: bool = True) -> int:
+
+def calculate_days(
+    from_date: date, to_date: date, include_weekends: bool = True
+) -> int:
     """Calculate inclusive days. If you want to exclude weekends, add logic."""
     delta = (to_date - from_date).days + 1
     return max(0, delta)
 
-async def find_mentor_and_lead(session: AsyncSession, user_id) -> Tuple[Optional[dict], Optional[dict]]:
+
+async def find_mentor_and_lead(
+    session: AsyncSession, user_id
+) -> Tuple[Optional[dict], Optional[dict]]:
     """
     Return (mentor_user, lead_user) as dicts or None.
     Uses your existing UserTeamsRole and Roles tables to find role members in same team.
@@ -34,30 +44,37 @@ async def find_mentor_and_lead(session: AsyncSession, user_id) -> Tuple[Optional
         return None, None
 
     # 2) find Mentor role id
-    mentor_role = (await session.exec(select(Roles).where(Roles.name == "Mentor"))).first()
-    lead_role = (await session.exec(select(Roles).where(Roles.name == "Team Lead"))).first()
+    mentor_role = (
+        await session.exec(select(Roles).where(Roles.name == "Mentor"))
+    ).first()
+    lead_role = (
+        await session.exec(select(Roles).where(Roles.name == "Team Lead"))
+    ).first()
 
     mentor_user = None
     lead_user = None
 
     if mentor_role:
-        mentor_user = (await session.exec(
-            select(Users)
-            .join(UserTeamsRole)
-            .where(UserTeamsRole.team_id == user_team.team_id)
-            .where(UserTeamsRole.role_id == mentor_role.id)
-        )).first()
+        mentor_user = (
+            await session.exec(
+                select(Users)
+                .join(UserTeamsRole)
+                .where(UserTeamsRole.team_id == user_team.team_id)
+                .where(UserTeamsRole.role_id == mentor_role.id)
+            )
+        ).first()
 
     if lead_role:
-        lead_user = (await session.exec(
-            select(Users)
-            .join(UserTeamsRole)
-            .where(UserTeamsRole.team_id == user_team.team_id)
-            .where(UserTeamsRole.role_id == lead_role.id)
-        )).first()
+        lead_user = (
+            await session.exec(
+                select(Users)
+                .join(UserTeamsRole)
+                .where(UserTeamsRole.team_id == user_team.team_id)
+                .where(UserTeamsRole.role_id == lead_role.id)
+            )
+        ).first()
 
     return mentor_user, lead_user
-
 
 
 async def get_tokens_for_user(session: AsyncSession, user_id) -> list[str]:
@@ -66,9 +83,12 @@ async def get_tokens_for_user(session: AsyncSession, user_id) -> list[str]:
         return []
     return user.device_tokens or []
 
+
 # Simple FCM send using legacy HTTP API (server key).
 # In production prefer FCM HTTP v1 (OAuth) or firebase-admin SDK.
-async def send_push_to_tokens(tokens: list[str], title: str, body: str, data: dict = None):
+async def send_push_to_tokens(
+    tokens: list[str], title: str, body: str, data: dict = None
+):
     if not tokens:
         return
 
@@ -95,8 +115,6 @@ async def send_push_to_tokens(tokens: list[str], title: str, body: str, data: di
         # handle response in logs
         if r.status_code != 200:
             print("FCM send failed:", r.status_code, r.text)
-
-
 
 
 SMTP_HOST = settings.EMAIL_SERVER
