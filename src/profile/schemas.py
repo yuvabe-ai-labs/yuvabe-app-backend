@@ -93,7 +93,7 @@ class AssetUpdateRequest(BaseModel):
 
 
 class AssetResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     user_id: uuid.UUID
     name: str
     type: str

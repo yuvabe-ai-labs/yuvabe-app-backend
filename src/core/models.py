@@ -18,6 +18,7 @@ class AssetStatus(str, Enum):
     ON_REQUEST = "On Request"
     IN_SERVICE = "In Service"
 
+
 class Emotion(str, Enum):
     JOYFUL = "joyful"
     HAPPY = "happy"
@@ -26,11 +27,13 @@ class Emotion(str, Enum):
     ANXIOUS = "anxious"
     SAD = "sad"
     FRUSTRATED = "frustrated"
-    
+
+
 class AppVersion(SQLModel, table=True):
     __tablename__ = "app_version"
     version: str = Field(primary_key=True)
     apk_download_link: str
+
 
 class Users(SQLModel, table=True):
     __tablename__ = "users"
@@ -91,7 +94,7 @@ class UserTeamsRole(SQLModel, table=True):
 
 class Assets(SQLModel, table=True):
     __tablename__ = "assets"
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: str = Field(primary_key=True)
     user_id: uuid.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
@@ -120,11 +123,14 @@ class EmotionLogs(SQLModel, table=True):
     )
 
     morning_emotion: Optional[Emotion] = Field(
-    sa_column=Column(SQLEnum(Emotion, name="emotion_enum", native_enum=True), nullable=True)
-)
+        sa_column=Column(
+            SQLEnum(Emotion, name="emotion_enum", native_enum=True), nullable=True
+        )
+    )
     evening_emotion: Optional[Emotion] = Field(
-    sa_column=Column(SQLEnum(Emotion, name="emotion_enum", native_enum=True), nullable=True)
-)
+        sa_column=Column(
+            SQLEnum(Emotion, name="emotion_enum", native_enum=True), nullable=True
+        )
+    )
 
     log_date: date = Field(default_factory=date.today)
-
