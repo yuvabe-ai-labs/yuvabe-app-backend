@@ -51,7 +51,7 @@ async def one_request_per_day(session: AsyncSession, user_id):
 
 
 async def get_hr_email(session: AsyncSession):
-    q = select(Roles).where(Roles.name == "HR Manager")
+    q = select(Roles).where(Roles.name == "HR")
     role = (await session.execute(q)).scalar_one_or_none()
     if not role:
         raise HTTPException(500, "HR role missing")
@@ -118,9 +118,14 @@ async def process_payslip_request(
     # 8. Build email body
     subject = "Payslip Request"
     body = (
-        f"Payslip request from {user.user_name} ({user.email_id})\n"
-        f"Team: {team}\n"
-        f"Period: {period_start} → {period_end}\n"
+        f"Dear Team,\n\n"
+        f"I would like to request the payslip for the following period:\n\n"
+        f"Employee Name : {user.user_name}\n"
+        f"Email         : {user.email_id}\n"
+        f"Team          : {team}\n"
+        f"Period        : {period_start} → {period_end}\n\n"
+        f"Kindly process this request at the earliest.\n"
+        f"Thank you.\n"
     )
 
     raw = build_email(user.email_id, hr_email, subject, body)
