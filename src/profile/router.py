@@ -521,6 +521,28 @@ async def get_profile_details(
     mentor_names = [u.user_name for u in mentor_users]
     mentor_emails = [u.email_id for u in mentor_users]
 
+    sub_mentor_role = (
+        await session.exec(select(Roles).where(Roles.name == "Sub Mentor"))
+    ).first()
+
+    sub_mentor_users = (
+        await session.exec(
+            select(Users)
+            .join(UserTeamsRole)
+            .where(UserTeamsRole.team_id == user_team.team_id)
+            .where(UserTeamsRole.role_id == sub_mentor_role.id)
+        )
+    ).all()
+
+    sub_mentor_names = [u.user_name for u in sub_mentor_users]
+    sub_mentor_emails = [u.email_id for u in sub_mentor_users]
+
+    
+    final_lead_name = ", ".join(mentor_names) if mentor_names else ", ".join(sub_mentor_names)
+    final_lead_email = ", ".join(mentor_emails) if mentor_emails else ", ".join(sub_mentor_emails)
+
+    lead_label = "Mentor" if mentor_names else "Team Lead"
+
     return BaseResponse(
         code=200,
         message="success",
@@ -528,8 +550,9 @@ async def get_profile_details(
             "name": user.user_name,
             "email": user.email_id,
             "team_name": team.name,
-            "mentor_name": ", ".join(mentor_names),
-            "mentor_email": ", ".join(mentor_emails),
+            "lead_label": lead_label,          # 🔥 Frontend uses this
+            "lead_name": final_lead_name,      # 🔥 Frontend uses this
+            "lead_email": final_lead_email,    # optional
             "join_date": user.join_date,
         },
     )
