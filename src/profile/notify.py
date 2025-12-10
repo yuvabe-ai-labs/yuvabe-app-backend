@@ -19,31 +19,56 @@ def ensure_list(value):
 # -------------------------------
 # SEND TO MENTOR + LEAD
 # -------------------------------
+# -------------------------------
+# SEND TO MENTOR + LEAD
+# -------------------------------
 async def send_leave_request_notification(session, user, leave, mentor_ids, lead_ids):
     mentor_ids = ensure_list(mentor_ids)
     lead_ids = ensure_list(lead_ids)
 
-    tokens = []
-
+    # ---------------------------
+    # SEND TO MENTORS (Approval screen)
+    # ---------------------------
+    mentor_tokens = []
     for mentor_id in mentor_ids:
-        tokens += await get_user_device_tokens(session, mentor_id)
+        mentor_tokens += await get_user_device_tokens(session, mentor_id)
 
+    mentor_tokens = list(set(mentor_tokens))
+
+    if mentor_tokens:
+        await send_fcm(
+            mentor_tokens,
+            "New Leave Request",
+            f"{user.user_name} requested leave",
+            {
+                "type": "leave_request",
+                "screen": "MentorApproval", 
+                "leave_id": str(leave.id),
+            },
+            priority="high",
+        )
+
+    # ---------------------------
+    # SEND TO TEAM LEADS (Leave Details screen)
+    # ---------------------------
+    lead_tokens = []
     for lead_id in lead_ids:
-        tokens += await get_user_device_tokens(session, lead_id)
+        lead_tokens += await get_user_device_tokens(session, lead_id)
 
-    tokens = list(set(tokens))
+    lead_tokens = list(set(lead_tokens))
 
-    await send_fcm(
-        tokens,
-        "New Leave Request",
-        f"{user.user_name} requested leave",
-        {
-            "type": "leave_request",
-            "screen": "MentorApproval",
-            "leave_id": str(leave.id),
-        },
-        priority="high",
-    )
+    if lead_tokens:
+        await send_fcm(
+            lead_tokens,
+            "New Leave Request",
+            f"{user.user_name} requested leave",
+            {
+                "type": "leave_request",
+                "screen": "LeaveDetails",  
+                "leave_id": str(leave.id),
+            },
+            priority="high",
+        )
 
 
 # -------------------------------

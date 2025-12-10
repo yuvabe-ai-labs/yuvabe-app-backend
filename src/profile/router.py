@@ -182,21 +182,45 @@ async def list_notifications(
     notifications = []
 
     for leave in results:
-        if leave.user_id == user_id:
-            # user = leave owner
+
+        leave_user = str(leave.user_id)
+        leave_mentor = str(leave.mentor_id)
+        leave_lead = str(leave.lead_id)
+        current = str(user_id)
+
+        employee = await session.get(Users, uuid.UUID(leave_user))
+        employee_name = employee.user_name if employee else "Unknown User"
+
+        # ---------- USER ----------
+        if leave_user == current:
+            # User should NOT see pending
+            if leave.status == LeaveStatus.PENDING:
+                continue
+
             title = f"Your leave was {leave.status}"
             body = f"{leave.leave_type} from {leave.from_date} to {leave.to_date}"
-        elif leave.mentor_id == user_id:
-            # mentor receives new leave request
-            title = "New Leave Request"
-            body = f"{leave.leave_type} requested by user"
-        elif leave.lead_id == user_id:
-            # lead receives updates
-            title = f"Leave {leave.status}"
-            body = f"{leave.leave_type} for user updated"
+
+        # ---------- MENTOR ----------
+        elif leave_mentor == current:
+            # Mentor should ONLY see pending
+            if leave.status == LeaveStatus.PENDING:
+                title = "New Leave Request"
+                body = f"{leave.leave_type} requested by {employee_name}"
+            else:
+                continue  # Mentor should not see approved/rejected
+
+        # ---------- TEAM LEAD ----------
+        elif leave_lead == current:
+            # Lead sees ALL statuses
+            if leave.status == LeaveStatus.PENDING:
+                title = "Pending Leave Request"
+                body = f"{leave.leave_type} requested by {employee_name}"
+            else:
+                title = f"Leave {leave.status}"
+                body = f"{leave.leave_type} updated"
+
         else:
-            title = "Leave Update"
-            body = leave.reason or ""
+            continue  # no match → skip
 
         notifications.append(
             {
@@ -205,6 +229,7 @@ async def list_notifications(
                 "lead_id": str(leave.lead_id),
                 "title": title,
                 "body": body,
+                "employee_name": employee_name,
                 "type": leave.status,
                 "updated_at": leave.updated_at.isoformat(),
                 "leave_type": leave.leave_type,
