@@ -584,12 +584,14 @@ async def cancel_leave(
 
     # Notify Team Lead
     lead_tokens = await get_user_device_tokens(session, leave.lead_id)
-    await send_fcm(
-        lead_tokens,
-        "Leave Cancelled",
-        f"User {user.user_name} cancelled their approved leave.",
-        {"type": "leave_cancel", "leave_id": str(leave.id)},
-    )
+    if leave.lead_id:
+        lead_tokens = await get_user_device_tokens(session, leave.lead_id)
+        await send_fcm(
+            lead_tokens,
+            "Leave Cancelled",
+            f"User {user.user_name} cancelled their approved leave.",
+            {"type": "leave_cancel", "leave_id": str(leave.id)},
+        )
 
     return {
         "code": 200,

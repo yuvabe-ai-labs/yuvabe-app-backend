@@ -229,6 +229,7 @@ async def run_all_seeds():
             "Digital Marketing",
             "Bevolve",
             "Bridge",
+            "Quilt",
             "HR",
         ]:
             await get_or_create(session, Teams, t)

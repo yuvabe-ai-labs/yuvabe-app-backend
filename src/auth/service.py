@@ -121,7 +121,7 @@ async def verify_email(session: Session, token: str):
 async def login_user(session: Session, email: str, password: str):
 
     if not email.lower():
-        raise HTTPException(status_code=400, detail="Enter you're Yuvabe email ID")
+        raise HTTPException(status_code=400, detail="Enter you're valid email ID")
 
     users = await session.exec(select(Users).where(Users.email_id == email))
     user = users.first()

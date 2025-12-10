@@ -47,15 +47,23 @@ async def _get_team_roles(session: AsyncSession, user_id: uuid.UUID):
     mentor_role = (
         await session.exec(select(Roles).where(Roles.name == "Mentor"))
     ).first()
-    if not mentor_role:
-        raise ValueError("Mentor role not found")
+    sub_mentor_role = (
+        await session.exec(select(Roles).where(Roles.name == "Sub Mentor"))
+    ).first()
+
+    if not mentor_role and not sub_mentor_role:
+        raise ValueError("No Mentor / Sub Mentor roles defined in system")
+
+    mentor_role_ids = []
+    if mentor_role:
+        mentor_role_ids.append(mentor_role.id)
+    if sub_mentor_role:
+        mentor_role_ids.append(sub_mentor_role.id)
 
     # 3) Get Team Lead role
     lead_role = (
         await session.exec(select(Roles).where(Roles.name == "Team Lead"))
     ).first()
-    if not lead_role:
-        raise ValueError("Team Lead role not found")
 
     # 4) Find mentor in same team
     mentor_users = (
@@ -63,25 +71,24 @@ async def _get_team_roles(session: AsyncSession, user_id: uuid.UUID):
             select(Users)
             .join(UserTeamsRole, UserTeamsRole.user_id == Users.id)
             .where(UserTeamsRole.team_id == user_team.team_id)
-            .where(UserTeamsRole.role_id == mentor_role.id)
+            .where(UserTeamsRole.role_id.in_(mentor_role_ids))
         )
     ).all()
 
     if not mentor_users:
-        raise ValueError("Mentor not found in user's team")
+        raise ValueError("No Mentor or Sub Mentor found in user's team")
 
     # 5) Find team lead in same team
-    lead_users = (
-        await session.exec(
-            select(Users)
-            .join(UserTeamsRole, UserTeamsRole.user_id == Users.id)
-            .where(UserTeamsRole.team_id == user_team.team_id)
-            .where(UserTeamsRole.role_id == lead_role.id)
-        )
-    ).all()
-
-    if not lead_users:
-        raise ValueError("Team Lead not found in user's team")
+    lead_users = []
+    if lead_role:
+        lead_users = (
+            await session.exec(
+                select(Users)
+                .join(UserTeamsRole, UserTeamsRole.user_id == Users.id)
+                .where(UserTeamsRole.team_id == user_team.team_id)
+                .where(UserTeamsRole.role_id == lead_role.id)
+            )
+        ).all()
 
     return mentor_users, lead_users
 
@@ -110,6 +117,9 @@ async def create_leave(session, user_id, body):
     # Get mentor + team lead
     mentor_users, lead_users = await _get_team_roles(session, user_id)
 
+    main_mentor = mentor_users[0]  # could be Mentor OR Sub Mentor
+    main_lead = lead_users[0] if lead_users else None
+
     leave = Leave(
         user_id=user_id,
         leave_type=body.leave_type,
@@ -117,8 +127,8 @@ async def create_leave(session, user_id, body):
         to_date=body.to_date,
         reason=body.reason,
         days=body.days,
-        mentor_id=mentor_users[0].id,
-        lead_id=lead_users[0].id,
+        mentor_id=main_mentor.id,
+        lead_id=main_lead.id if main_lead else None,
     )
 
     session.add(leave)
