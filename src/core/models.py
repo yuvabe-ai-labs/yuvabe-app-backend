@@ -94,7 +94,10 @@ class UserTeamsRole(SQLModel, table=True):
 
 class Assets(SQLModel, table=True):
     __tablename__ = "assets"
-    id: str = Field(primary_key=True)
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+    )
     user_id: uuid.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
@@ -102,10 +105,11 @@ class Assets(SQLModel, table=True):
             nullable=False,
         )
     )
-    name: str = Field(nullable=False)
+    asset_id: str = Field(sa_column=Column("asset_id", String, nullable=False))
     type: str = Field(nullable=False)
     status: AssetStatus = Field(default=AssetStatus.UNAVAILABLE)
     user: "Users" = Relationship(back_populates="asset")
+    __table_args__ = (UniqueConstraint("asset_id", "type", name="unique_assetid_type"),)
 
 
 class EmotionLogs(SQLModel, table=True):

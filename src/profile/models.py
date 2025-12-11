@@ -48,8 +48,8 @@ class Leave(SQLModel, table=True):
     status: LeaveStatus = Field(default=LeaveStatus.PENDING)
     is_delivered: bool = Field(default= False)
     is_read: bool = Field(default=False)
-    requested_at: date = Field(default_factory=date.today)
-    updated_at: date = Field(default_factory=date.today)
+    requested_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     reject_reason: Optional[str] = None
 
 class UserDevices(SQLModel, table=True):

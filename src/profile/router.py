@@ -645,9 +645,9 @@ async def get_profile(
     # Convert SQL rows → Pydantic
     assets_dto = [
         AssetResponse(
-            id=a.id,
+            id=str(a.id),
             user_id=a.user_id,
-            name=a.name,
+            asset_id=a.asset_id,
             type=a.type,
             status=a.status,
         )

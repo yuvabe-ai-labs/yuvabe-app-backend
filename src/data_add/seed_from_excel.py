@@ -194,16 +194,30 @@ async def seed_from_excel(session: AsyncSession, excel_path="src/data_add/users.
         assets_list = parse_assets_from_excel(clean(row["assets"]))
 
         for asset in assets_list:
-            asset_id = normalize_asset_id(asset.get("id"))
-            asset_type = asset.get("type", "Unknown")
+            raw_id = clean(asset.get("id"))
+            raw_type = clean(asset.get("type"))
 
-            if not asset_id:
+            if not raw_id:
                 continue
 
+            # Clean & normalize asset id (your YB-12 format)
+            asset_id = normalize_asset_id(raw_id)
+            asset_type = raw_type or "Unknown"
+
+            # Skip duplicates (because of unique constraint asset_id + type)
+            existing = await session.exec(
+                select(Assets).where(
+                    Assets.asset_id == asset_id, Assets.type == asset_type
+                )
+            )
+            if existing.first():
+                print(f"⚠ Skipping duplicate asset: {asset_id} ({asset_type})")
+                continue
+
+            # Insert new asset
             asset_obj = Assets(
-                id=asset_id,
                 user_id=user.id,
-                name=asset_type,
+                asset_id=asset_id,
                 type=asset_type,
                 status=AssetStatus.ACTIVE,
             )
