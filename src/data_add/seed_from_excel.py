@@ -46,13 +46,11 @@ def normalize_asset_id(value: str) -> str:
     value = value.strip().replace(" ", "")
     value = value.upper()
 
-    # Fix repeated hyphens
     while "--" in value:
         value = value.replace("--", "-")
 
-    # If looks like YB73M (missing hyphens)
     if "-" not in value:
-        prefix = value[:2]  # YB
+        prefix = value[:2]
         number = "".join(filter(str.isdigit, value))
         suffix = value[len(prefix) + len(number) :]
         return f"{prefix}-{number}-{suffix}"
@@ -110,6 +108,37 @@ def parse_assets_from_excel(raw_value):
 
 
 # ---------------------------------------------
+# FORMAT JOIN DATE (NEW)
+# ---------------------------------------------
+def format_join_date(value):
+    """Always return YYYY-MM-DD string, no time."""
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value.date().isoformat()  # remove time
+
+    if isinstance(value, date):
+        return value.isoformat()
+
+    if isinstance(value, str):
+        value = value.strip()
+
+        # Try standard formats
+        for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d-%m-%Y", "%m/%d/%Y"):
+            try:
+                d = datetime.strptime(value, fmt).date()
+                return d.isoformat()
+            except:
+                continue
+
+        # Fallback: return cleaned string
+        return value
+
+    return str(value)
+
+
+# ---------------------------------------------
 # MAIN IMPORT
 # ---------------------------------------------
 async def seed_from_excel(session: AsyncSession, excel_path="src/data_add/users.xlsx"):
@@ -131,15 +160,19 @@ async def seed_from_excel(session: AsyncSession, excel_path="src/data_add/users.
         else:
             dob = raw_dob
 
-        # --- CREATE USER (is_verified = True) ---
+        # --- JOIN DATE (FIXED) ---
+        raw_join = clean(row["join_date"])
+        join_date = format_join_date(raw_join)
+
+        # --- CREATE USER ---
         user = Users(
             email_id=row["email"],
             password=hash_password(row["password"]),
             user_name=row["User_name"],
             dob=dob,
             address=clean(row["address"]),
-            join_date=str(clean(row["join_date"])),
-            is_verified=True,  # <--- Added here
+            join_date=join_date,  # <--- NOW ONLY YYYY-MM-DD
+            is_verified=True,
         )
 
         session.add(user)
@@ -161,17 +194,31 @@ async def seed_from_excel(session: AsyncSession, excel_path="src/data_add/users.
         assets_list = parse_assets_from_excel(clean(row["assets"]))
 
         for asset in assets_list:
-            asset_id = normalize_asset_id(asset.get("id"))
-            asset_type = asset.get("type", "Unknown")
+            raw_id = clean(asset.get("id"))
+            raw_type = clean(asset.get("type"))
 
-            if not asset_id:
+            if not raw_id:
                 continue
 
+            # Clean & normalize asset id (your YB-12 format)
+            asset_id = normalize_asset_id(raw_id)
+            asset_type = raw_type or "Unknown"
+
+            # Skip duplicates (because of unique constraint asset_id + type)
+            existing = await session.exec(
+                select(Assets).where(
+                    Assets.asset_id == asset_id, Assets.type == asset_type
+                )
+            )
+            if existing.first():
+                print(f"⚠ Skipping duplicate asset: {asset_id} ({asset_type})")
+                continue
+
+            # Insert new asset
             asset_obj = Assets(
-                id=asset_id,  # cleaned ID like YB-73-M
                 user_id=user.id,
-                name=asset_type,  # Monitor
-                type=asset_type,  # Monitor
+                asset_id=asset_id,
+                type=asset_type,
                 status=AssetStatus.ACTIVE,
             )
 
@@ -192,10 +239,11 @@ async def run_all_seeds():
         print("\n🟦 Seeding TEAMS...")
         for t in [
             "AI/Tech",
-            "Shared services",
+            "Shared Services",
             "Digital Marketing",
             "Bevolve",
             "Bridge",
+            "Quilt",
             "HR",
         ]:
             await get_or_create(session, Teams, t)

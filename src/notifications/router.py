@@ -37,8 +37,11 @@ async def mark_notification_read(
         raise HTTPException(404, "Notification not found")
 
     # Only owner or mentor should mark
-    if str(notif.user_id) != user_id and str(notif.mentor_id) != user_id:
+    if str(notif.user_id) != user_id and \
+       str(notif.mentor_id) != user_id and \
+       str(notif.lead_id) != user_id:
         raise HTTPException(403, "Unauthorized")
+
 
     notif.is_read = True
     await session.commit()

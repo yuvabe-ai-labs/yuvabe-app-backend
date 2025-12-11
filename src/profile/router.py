@@ -182,21 +182,45 @@ async def list_notifications(
     notifications = []
 
     for leave in results:
-        if leave.user_id == user_id:
-            # user = leave owner
+
+        leave_user = str(leave.user_id)
+        leave_mentor = str(leave.mentor_id)
+        leave_lead = str(leave.lead_id)
+        current = str(user_id)
+
+        employee = await session.get(Users, uuid.UUID(leave_user))
+        employee_name = employee.user_name if employee else "Unknown User"
+
+        # ---------- USER ----------
+        if leave_user == current:
+            # User should NOT see pending
+            if leave.status == LeaveStatus.PENDING:
+                continue
+
             title = f"Your leave was {leave.status}"
             body = f"{leave.leave_type} from {leave.from_date} to {leave.to_date}"
-        elif leave.mentor_id == user_id:
-            # mentor receives new leave request
-            title = "New Leave Request"
-            body = f"{leave.leave_type} requested by user"
-        elif leave.lead_id == user_id:
-            # lead receives updates
-            title = f"Leave {leave.status}"
-            body = f"{leave.leave_type} for user updated"
+
+        # ---------- MENTOR ----------
+        elif leave_mentor == current:
+            # Mentor should ONLY see pending
+            if leave.status == LeaveStatus.PENDING:
+                title = "New Leave Request"
+                body = f"{leave.leave_type} requested by {employee_name}"
+            else:
+                continue  # Mentor should not see approved/rejected
+
+        # ---------- TEAM LEAD ----------
+        elif leave_lead == current:
+            # Lead sees ALL statuses
+            if leave.status == LeaveStatus.PENDING:
+                title = "Pending Leave Request"
+                body = f"{leave.leave_type} requested by {employee_name}"
+            else:
+                title = f"Leave {leave.status}"
+                body = f"{leave.leave_type} updated"
+
         else:
-            title = "Leave Update"
-            body = leave.reason or ""
+            continue  # no match → skip
 
         notifications.append(
             {
@@ -205,6 +229,7 @@ async def list_notifications(
                 "lead_id": str(leave.lead_id),
                 "title": title,
                 "body": body,
+                "employee_name": employee_name,
                 "type": leave.status,
                 "updated_at": leave.updated_at.isoformat(),
                 "leave_type": leave.leave_type,
@@ -496,6 +521,28 @@ async def get_profile_details(
     mentor_names = [u.user_name for u in mentor_users]
     mentor_emails = [u.email_id for u in mentor_users]
 
+    sub_mentor_role = (
+        await session.exec(select(Roles).where(Roles.name == "Sub Mentor"))
+    ).first()
+
+    sub_mentor_users = (
+        await session.exec(
+            select(Users)
+            .join(UserTeamsRole)
+            .where(UserTeamsRole.team_id == user_team.team_id)
+            .where(UserTeamsRole.role_id == sub_mentor_role.id)
+        )
+    ).all()
+
+    sub_mentor_names = [u.user_name for u in sub_mentor_users]
+    sub_mentor_emails = [u.email_id for u in sub_mentor_users]
+
+    
+    final_lead_name = ", ".join(mentor_names) if mentor_names else ", ".join(sub_mentor_names)
+    final_lead_email = ", ".join(mentor_emails) if mentor_emails else ", ".join(sub_mentor_emails)
+
+    lead_label = "Mentor" if mentor_names else "Team Lead"
+
     return BaseResponse(
         code=200,
         message="success",
@@ -503,8 +550,9 @@ async def get_profile_details(
             "name": user.user_name,
             "email": user.email_id,
             "team_name": team.name,
-            "mentor_name": ", ".join(mentor_names),
-            "mentor_email": ", ".join(mentor_emails),
+            "lead_label": lead_label,          # 🔥 Frontend uses this
+            "lead_name": final_lead_name,      # 🔥 Frontend uses this
+            "lead_email": final_lead_email,    # optional
             "join_date": user.join_date,
         },
     )
@@ -559,12 +607,14 @@ async def cancel_leave(
 
     # Notify Team Lead
     lead_tokens = await get_user_device_tokens(session, leave.lead_id)
-    await send_fcm(
-        lead_tokens,
-        "Leave Cancelled",
-        f"User {user.user_name} cancelled their approved leave.",
-        {"type": "leave_cancel", "leave_id": str(leave.id)},
-    )
+    if leave.lead_id:
+        lead_tokens = await get_user_device_tokens(session, leave.lead_id)
+        await send_fcm(
+            lead_tokens,
+            "Leave Cancelled",
+            f"User {user.user_name} cancelled their approved leave.",
+            {"type": "leave_cancel", "leave_id": str(leave.id)},
+        )
 
     return {
         "code": 200,
@@ -595,9 +645,9 @@ async def get_profile(
     # Convert SQL rows → Pydantic
     assets_dto = [
         AssetResponse(
-            id=a.id,
+            id=str(a.id),
             user_id=a.user_id,
-            name=a.name,
+            asset_id=a.asset_id,
             type=a.type,
             status=a.status,
         )
