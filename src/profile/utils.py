@@ -20,7 +20,8 @@ from src.core.models import (
 )  # adjust import path if differs
 from src.core.config import settings  # for FCM key if needed
 import httpx
-
+from uuid import UUID
+import uuid
 
 def calculate_days(
     from_date: date, to_date: date, include_weekends: bool = True
@@ -28,6 +29,13 @@ def calculate_days(
     """Calculate inclusive days. If you want to exclude weekends, add logic."""
     delta = (to_date - from_date).days + 1
     return max(0, delta)
+
+def safe_uuid(value):
+    try:
+        return uuid.UUID(str(value))
+    except:
+        return None
+
 
 
 async def find_mentor_and_lead(

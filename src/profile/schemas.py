@@ -66,6 +66,7 @@ class LeaveResponse(BaseModel):
     lead_id: str
     user_name: Optional[str] = None
     updated_at: Optional[str] = None
+    requested_at: Optional[str] = None
 
 
 class DeviceTokenIn(BaseModel):
