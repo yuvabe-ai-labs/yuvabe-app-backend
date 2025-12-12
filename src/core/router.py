@@ -19,12 +19,15 @@ async def get_app_config(
 
     min_version = row.version if row else "0.0.0"
     apk_url = row.apk_download_link if row else ""
+    ios_url = row.ios_download_link if row else ""
 
     return BaseResponse(
         status_code=200,
         data=AppConfigResponse(
             version=min_version,
-            apk_download_link=apk_url
+            apk_download_link=apk_url,
+            ios_download_link=ios_url
         )
     )
+
 

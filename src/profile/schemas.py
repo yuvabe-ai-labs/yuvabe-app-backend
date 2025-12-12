@@ -66,6 +66,7 @@ class LeaveResponse(BaseModel):
     lead_id: str
     user_name: Optional[str] = None
     updated_at: Optional[str] = None
+    requested_at: Optional[str] = None
 
 
 class DeviceTokenIn(BaseModel):
@@ -93,9 +94,9 @@ class AssetUpdateRequest(BaseModel):
 
 
 class AssetResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     user_id: uuid.UUID
-    name: str
+    asset_id: str
     type: str
     status: AssetStatus
 
