@@ -33,7 +33,7 @@ class AppVersion(SQLModel, table=True):
     __tablename__ = "app_version"
     version: str = Field(primary_key=True)
     apk_download_link: str
-
+    ios_download_link: str
 
 class Users(SQLModel, table=True):
     __tablename__ = "users"
