@@ -1,11 +1,10 @@
 ---
-title: Yuvabe App Backend
-emoji: 🔥
-colorFrom: gray
-colorTo: gray
+title: Yuvabe App Dev
+emoji: 🚀
+colorFrom: red
+colorTo: purple
 sdk: docker
 pinned: false
-short_description: Yuvabe App Backend
 ---
 
-Check out our deployment at : https://huggingface.co/spaces/yuvabe-ai/yuvabe-app-backend
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
