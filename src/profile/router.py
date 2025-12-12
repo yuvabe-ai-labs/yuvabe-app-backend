@@ -29,7 +29,7 @@ from src.profile.schemas import (
     ApproveRejectRequest,
 )
 from sqlalchemy import desc
-
+from src.profile.utils import safe_uuid
 from datetime import datetime
 from src.profile.service import create_leave, mentor_decide_leave
 
@@ -188,8 +188,25 @@ async def list_notifications(
         leave_lead = str(leave.lead_id)
         current = str(user_id)
 
+        leave_type_text = leave.leave_type.name.lower()  # "sick", "casual"
+        status_text = leave.status.lower()
+
         employee = await session.get(Users, uuid.UUID(leave_user))
         employee_name = employee.user_name if employee else "Unknown User"
+
+        # Fetch mentor name safely
+        mentor_id_safe = safe_uuid(leave_mentor)
+        mentor_user = (
+            await session.get(Users, mentor_id_safe) if mentor_id_safe else None
+        )
+        mentor_name = mentor_user.user_name if mentor_user else None
+
+        # Fetch lead name safely
+        lead_id_safe = safe_uuid(leave_lead)
+        lead_user = await session.get(Users, lead_id_safe) if lead_id_safe else None
+        lead_name = lead_user.user_name if lead_user else None
+
+        approver_name = mentor_name or lead_name or "Your manager"
 
         # ---------- USER ----------
         if leave_user == current:
@@ -197,15 +214,18 @@ async def list_notifications(
             if leave.status == LeaveStatus.PENDING:
                 continue
 
-            title = f"Your leave was {leave.status}"
-            body = f"{leave.leave_type} from {leave.from_date} to {leave.to_date}"
+            status_word = leave.status.lower()
+            title = (
+                f"{approver_name} {status_word} your {leave.leave_type.lower()} leave"
+            )
+            body = f"{leave.reject_reason or ''}"
 
         # ---------- MENTOR ----------
         elif leave_mentor == current:
             # Mentor should ONLY see pending
             if leave.status == LeaveStatus.PENDING:
-                title = "New Leave Request"
-                body = f"{leave.leave_type} requested by {employee_name}"
+                title = f"{employee_name} requested {leave_type_text} leave"
+                body = f"{leave.reason} Days: {leave.days} "
             else:
                 continue  # Mentor should not see approved/rejected
 
@@ -214,10 +234,10 @@ async def list_notifications(
             # Lead sees ALL statuses
             if leave.status == LeaveStatus.PENDING:
                 title = "Pending Leave Request"
-                body = f"{leave.leave_type} requested by {employee_name}"
+                body = f"{employee_name} requested {leave_type_text} leave"
             else:
-                title = f"Leave {leave.status}"
-                body = f"{leave.leave_type} updated"
+                title = f"Leave {status_text}"
+                body = f"{leave_type_text} updated"
 
         else:
             continue  # no match → skip
@@ -291,7 +311,7 @@ async def mentor_pending_leaves(
 ):
     mentor_uuid = uuid.UUID(mentor_id)
 
-    print("🔥 mentor pending called for:", mentor_id)
+    
 
     mentor_team = (
         await session.exec(
@@ -344,6 +364,7 @@ async def mentor_pending_leaves(
                 lead_id=str(leave.lead_id),
                 user_name=user_name,
                 updated_at=(leave.updated_at.isoformat() if leave.updated_at else None),
+                requested_at=leave.requested_at.isoformat() if leave.requested_at else None,
             )
         )
 
@@ -537,9 +558,12 @@ async def get_profile_details(
     sub_mentor_names = [u.user_name for u in sub_mentor_users]
     sub_mentor_emails = [u.email_id for u in sub_mentor_users]
 
-    
-    final_lead_name = ", ".join(mentor_names) if mentor_names else ", ".join(sub_mentor_names)
-    final_lead_email = ", ".join(mentor_emails) if mentor_emails else ", ".join(sub_mentor_emails)
+    final_lead_name = (
+        ", ".join(mentor_names) if mentor_names else ", ".join(sub_mentor_names)
+    )
+    final_lead_email = (
+        ", ".join(mentor_emails) if mentor_emails else ", ".join(sub_mentor_emails)
+    )
 
     lead_label = "Mentor" if mentor_names else "Team Lead"
 
@@ -550,9 +574,9 @@ async def get_profile_details(
             "name": user.user_name,
             "email": user.email_id,
             "team_name": team.name,
-            "lead_label": lead_label,          # 🔥 Frontend uses this
-            "lead_name": final_lead_name,      # 🔥 Frontend uses this
-            "lead_email": final_lead_email,    # optional
+            "lead_label": lead_label,  # 🔥 Frontend uses this
+            "lead_name": final_lead_name,  # 🔥 Frontend uses this
+            "lead_email": final_lead_email,  # optional
             "join_date": user.join_date,
         },
     )

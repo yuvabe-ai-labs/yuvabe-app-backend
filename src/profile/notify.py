@@ -42,7 +42,7 @@ async def send_leave_request_notification(session, user, leave, mentor_ids, lead
             f"{user.user_name} requested leave",
             {
                 "type": "leave_request",
-                "screen": "MentorApproval", 
+                "screen": "MentorApproval",
                 "leave_id": str(leave.id),
             },
             priority="high",
@@ -64,7 +64,7 @@ async def send_leave_request_notification(session, user, leave, mentor_ids, lead
             f"{user.user_name} requested leave",
             {
                 "type": "leave_request",
-                "screen": "LeaveDetails",  
+                "screen": "LeaveDetails",
                 "leave_id": str(leave.id),
             },
             priority="high",
@@ -75,7 +75,7 @@ async def send_leave_request_notification(session, user, leave, mentor_ids, lead
 # SEND TO USER + TEAM LEAD
 # -------------------------------
 async def send_leave_status_notification(session, leave, mentor_name, lead_ids):
-    title = f"Leave {leave.status}"
+    title = "Leave status"
     body = f"Your leave was {leave.status.lower()} by {mentor_name}"
 
     # Send to USER
