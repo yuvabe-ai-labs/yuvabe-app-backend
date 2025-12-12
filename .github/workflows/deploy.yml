@@ -21,7 +21,7 @@ jobs:
         id: target
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            echo "space=yuvabe-ai/yuvabe-app" >> $GITHUB_OUTPUT
+            echo "space=yuvabe-ai/yuvabe-app-backend" >> $GITHUB_OUTPUT
             echo "branch=main" >> $GITHUB_OUTPUT
           else
             echo "space=yuvabe-ai/yuvabe-app-dev" >> $GITHUB_OUTPUT
