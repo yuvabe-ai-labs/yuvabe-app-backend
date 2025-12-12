@@ -14,6 +14,7 @@ from src.core.router import router as app_config
 from fastapi.staticfiles import StaticFiles
 
 
+
 app = FastAPI(title="Yuvabe App API")
 
 
