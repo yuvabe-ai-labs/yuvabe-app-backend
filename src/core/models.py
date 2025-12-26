@@ -1,5 +1,5 @@
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, text
 import uuid
 from datetime import date, datetime
 from enum import Enum
@@ -29,11 +29,15 @@ class Emotion(str, Enum):
     FRUSTRATED = "frustrated"
 
 
+class LunchLocation(str, Enum):
+    SARACON_CAMPUS = "Saracon Campus"
+    SOLAR_KITCHEN = "Solar Kitchen"
+
 class AppVersion(SQLModel, table=True):
     __tablename__ = "app_version"
     version: str = Field(primary_key=True)
-    apk_download_link: str
-
+    apk_download_link: str = Field(nullable=False)
+    ios_download_link: str = Field(nullable=False)
 
 class Users(SQLModel, table=True):
     __tablename__ = "users"
@@ -52,6 +56,7 @@ class Users(SQLModel, table=True):
     asset: List["Assets"] = Relationship(back_populates="user")
     water_logs: List["WaterLogs"] = Relationship(back_populates="user")
     journal_entries: List["JournalEntry"] = Relationship(back_populates="user")
+    lunch_preference: LunchLocation = Field(default= None,sa_column_kwargs={"server_default": "SOLAR_KITCHEN"})
 
 
 class Teams(SQLModel, table=True):
@@ -62,7 +67,7 @@ class Teams(SQLModel, table=True):
 
 class Roles(SQLModel, table=True):
     __tablename__ = "roles"
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, sa_column_kwargs={"server_default": text("gen_random_uuid()")})
     name: str = Field(unique=True, nullable=False)
 
 

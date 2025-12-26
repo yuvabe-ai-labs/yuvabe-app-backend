@@ -96,7 +96,6 @@ async def gmail_callback(
 
     await session.commit()
 
-    # --- SUCCESS MESSAGE ---
     return RedirectResponse(
         "yuvabe://gmail/callback?success=true&message=gmail_connected_successfully"
     )

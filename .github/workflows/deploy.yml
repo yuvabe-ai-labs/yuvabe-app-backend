@@ -1,0 +1,42 @@
+name: Deploy to HuggingFace Spaces
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+      
+      - name: Determine target space
+        id: target
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "space=yuvabe-ai/yuvabe" >> $GITHUB_OUTPUT
+            echo "branch=main" >> $GITHUB_OUTPUT
+          else
+            echo "space=yuvabe-ai/yuvabe-dev" >> $GITHUB_OUTPUT
+            echo "branch=dev" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Push to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Add HuggingFace remote
+          git remote add hf https://user:$HF_TOKEN@huggingface.co/spaces/${{ steps.target.outputs.space }}
+          
+          # Push to HuggingFace Space
+          git push hf ${{ steps.target.outputs.branch }}:main --force

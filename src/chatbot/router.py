@@ -22,7 +22,7 @@ from .schemas import (
 )
 from .service import process_pdf_and_store
 
-router = APIRouter(prefix="/chatbot", tags=["chatbot"])
+router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 
 @router.post("/tokenize", response_model=TokenizeResponse)
 async def tokenize_text(payload: TokenizeRequest,user_id: UUID = Depends(get_current_user)):

@@ -1,7 +1,7 @@
 ---
 title: Yuvabe App Backend
 emoji: 🔥
-colorFrom: gray
+colorFrom: indigo
 colorTo: gray
 sdk: docker
 pinned: false

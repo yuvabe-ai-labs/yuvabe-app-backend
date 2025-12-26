@@ -10,6 +10,7 @@ from src.notifications.router import router as notifications_router
 from src.payslip.router import router as payslip_router
 from src.profile.router import router as profile
 from src.journaling.router import router as journal
+from src.foodcount.router import router as foodcount
 from src.core.router import router as app_config
 from fastapi.staticfiles import StaticFiles
 
@@ -40,7 +41,9 @@ app.include_router(payslip_router)
 
 app.include_router(journal)
 
+app.include_router(foodcount)
+
 
 @app.get("/")
 def root():
-    return {"message": "API is running fine!"}
+    return {"message": "API is running fine!! Finally..."}
