@@ -3,7 +3,13 @@ from src.auth.utils import get_current_user
 from fastapi import APIRouter, Depends, HTTPException
 from uuid import UUID
 from typing import List
-from src.wellbeing.schemas import WaterLogCreate, WaterLogUpdate, WaterLog
+from src.wellbeing.schemas import (
+    WaterLogCreate,
+    WaterLogUpdate,
+    WaterLog,
+    StepsLog,
+    StepsLogCreate,
+)
 from . import service
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
@@ -39,10 +45,10 @@ async def update_water_log(
     session: AsyncSession = Depends(get_async_session),
     user_id: UUID = Depends(get_current_user),
 ):
-    updated_log = service.update_water_log(session, water_log_id, water_log)
+    updated_log = await service.update_water_log(session, water_log_id, water_log)
     if not updated_log:
         raise HTTPException(status_code=404, detail="Water log not found")
-    return await updated_log
+    return updated_log
 
 
 # Delete a water log
@@ -56,3 +62,32 @@ async def delete_water_log(
     if not success:
         raise HTTPException(status_code=404, detail="Water log not found")
     return {"message": "Water log deleted successfully"}
+
+
+@router.post("/steps", response_model=StepsLog)
+async def create_or_update_steps(
+    steps: StepsLogCreate,
+    session: AsyncSession = Depends(get_async_session),
+    user_id: UUID = Depends(get_current_user),
+):
+    return await service.create_or_update_steps(
+        session=session,
+        steps=steps,
+        user_id=user_id,
+    )
+
+
+@router.get("/getsteps", response_model=list[StepsLog])
+async def get_steps(
+    session: AsyncSession = Depends(get_async_session),
+    user_id: UUID = Depends(get_current_user),
+):
+    return await service.get_steps_logs(session, user_id)
+
+@router.get("/steps/weekly")
+async def get_weekly_steps(
+    session: AsyncSession = Depends(get_async_session),
+    user_id: UUID = Depends(get_current_user),
+):
+    return await service.get_weekly_steps(session, user_id)
+
